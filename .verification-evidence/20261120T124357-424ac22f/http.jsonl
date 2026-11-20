@@ -1,0 +1,14 @@
+{"method": "GET", "path": "/splash/v1/models", "auth_ok": true, "time": 83476.146502708}
+{"method": "POST", "path": "/splash/v1/chat/completions", "model": "verify-model", "stream": true, "return_progress": true, "stream_options": {"include_usage": true}, "auth_ok": true, "payload_sha256": "142a264c36889d9ab2f3416009cd196961af65ff67050b099d3f3815faecaffe", "time": 83476.15844025}
+{"phase": "prefill", "time": 83476.766693958}
+{"phase": "generation", "time": 83477.81815325}
+{"phase": "done", "time": 83478.254265666}
+{"method": "GET", "path": "/other/v1/models", "auth_ok": true, "time": 83478.595740541}
+{"method": "POST", "path": "/other/v1/chat/completions", "model": "verify-model", "stream": true, "return_progress": null, "stream_options": {"include_usage": true}, "auth_ok": true, "payload_sha256": "d60af359eb3207cf380e651044b86f9ccb081ca697092e197756876d13ce32b5", "time": 83478.624062458}
+{"phase": "prefill", "time": 83479.231572458}
+{"phase": "generation", "time": 83480.297175625}
+{"phase": "done", "time": 83480.739565125}
+{"method": "POST", "path": "/splash/v1/chat/completions", "model": "verify-model", "stream": true, "return_progress": true, "stream_options": {"include_usage": true}, "auth_ok": true, "payload_sha256": "592c63c820ba3609ac8cb2024f7af14dfd32111785b07461abbe57ca617ae5c6", "time": 83481.112472708}
+{"phase": "prefill", "time": 83481.726770041}
+{"phase": "generation", "time": 83482.782564083}
+{"phase": "done", "time": 83483.2218685}

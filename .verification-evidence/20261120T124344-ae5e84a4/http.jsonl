@@ -1,0 +1,9 @@
+{"method": "GET", "path": "/splash/v1/models", "auth_ok": true, "time": 83463.269354625}
+{"method": "POST", "path": "/splash/v1/chat/completions", "model": "verify-model", "stream": true, "return_progress": true, "stream_options": {"include_usage": true}, "auth_ok": true, "payload_sha256": "604e4e141748dc983b3e5e837e75eff49005e0a3e7eff3bfbae923caf3deff7c", "time": 83463.282114458}
+{"phase": "prefill", "time": 83463.8978325}
+{"phase": "generation", "time": 83464.934931}
+{"phase": "done", "time": 83465.376646333}
+{"method": "POST", "path": "/splash/v1/chat/completions", "model": "verify-model", "stream": true, "return_progress": true, "stream_options": {"include_usage": true}, "auth_ok": true, "payload_sha256": "b2f466d184d01bbbba679075263d2f53fee9e59c4e36c9303d55d412e8eb5fe7", "time": 83465.717302666}
+{"phase": "prefill", "time": 83466.330964916}
+{"phase": "generation", "time": 83467.385707875}
+{"phase": "done", "time": 83467.827468458}

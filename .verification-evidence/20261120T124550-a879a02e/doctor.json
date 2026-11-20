@@ -1,0 +1,7 @@
+{
+  "pid": 99121,
+  "alive": true,
+  "port": 50472,
+  "loopback": true,
+  "ready_snapshot": "ready.screen.txt"
+}
