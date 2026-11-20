@@ -1,0 +1,20 @@
+[
+  "/Users/cirolucio.tecce/.pi/agent/bin/pi",
+  "--no-approve",
+  "--no-tools",
+  "--no-skills",
+  "--no-prompt-templates",
+  "--no-context-files",
+  "--no-mcp",
+  "--no-extensions",
+  "--provider",
+  "probe",
+  "--model",
+  "probe-model",
+  "--thinking",
+  "off",
+  "--tui-mode",
+  "regular",
+  "-e",
+  "/Users/cirolucio.tecce/PersonalProjects/pi-splash-stats/.worktrees/s5a/probe/probe-ext.ts"
+]
