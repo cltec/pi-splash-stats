@@ -1,0 +1,21 @@
+{
+  "config_hashes": {
+    "models.json": "83a26ad459aa43f56f233a2e30cfa05e340e49924715a8d83aed0f27c67d805a",
+    "settings.json": "e0ac6c8cb61fc043d94db37c86dba3f79dd561b752dc34832c2215d5abc2e229",
+    "auth.json": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  "files": [
+    "agent/auth.json",
+    "agent/models-store.json",
+    "agent/models.json",
+    "agent/pi-debug.log",
+    "agent/settings.json",
+    "tmp/jiti/src-discovery.5597a279.mjs",
+    "tmp/jiti/src-format.dc007f15.mjs",
+    "tmp/jiti/src-identity.65efc754.mjs",
+    "tmp/jiti/src-index.be3334b6.mjs",
+    "tmp/jiti/src-progress.bce90d89.mjs",
+    "tmp/jiti/src-transport.b84d6d5e.mjs",
+    "tmp/jiti/src-ui.3f5aab55.mjs"
+  ]
+}

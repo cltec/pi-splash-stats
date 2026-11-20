@@ -1,0 +1,21 @@
+{
+  "command": "doctor",
+  "scenario": "chat",
+  "coverage": [],
+  "unverified": [
+    "real Splash",
+    "launcher",
+    "tools",
+    "summaries",
+    "automatic/recovery compaction",
+    "remote/IPv6/auth failures",
+    "exact final transient counts/rates",
+    "narrow layout",
+    "other-extension coexistence",
+    "packed package unless --package supplied"
+  ],
+  "status": "READY_TO_LAUNCH",
+  "scratch_removed": true,
+  "fixture_closed": true,
+  "evidence_survives": true
+}

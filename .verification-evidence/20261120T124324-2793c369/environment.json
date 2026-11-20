@@ -1,0 +1,19 @@
+{
+  "pi": "/Users/cirolucio.tecce/.pi/agent/bin/pi",
+  "pi_version": "1.5.2",
+  "node_version": "v22.23.5",
+  "os": "macOS-26.7.3-arm64-arm-64bit-Mach-O",
+  "package": "/Users/cirolucio.tecce/PersonalProjects/pi-splash-stats/.worktrees/s2",
+  "target": "extension",
+  "source_sha256": {
+    "src/AGENTS.md": "06b15a532824b0ba58489acf4bfdd7186a06604d51ed3574bef397b556128849",
+    "src/discovery.ts": "56f9d41d5bb0096d0b9c44d87b8e221ba96d681c1fc959bf47778071a9ddef53",
+    "src/format.ts": "3a5bd46540e5e056fc74fc3f6ed2b23a0a09f716246f729d431210bf6d7585f6",
+    "src/identity.ts": "b53ffa3dc12fbe338a402aa836b4a2745cf6c23f9715c9438e1752fdbba3b815",
+    "src/index.ts": "3fa1abac17cee090ffe39f8f3f453a7d2d94684d024e5fee8ee91357f1b4532e",
+    "src/progress.ts": "c45f09626f95fa7b9158c60057ce416cb74706cf941532e21bf864c175fdcfe5",
+    "src/transport.ts": "61f3888e98a52b0eef572e6f34c918714a07e7b286b8602861e4432611564be4",
+    "src/ui.ts": "5fe7b5f6a920e8086027deb52dc7861477c593c3237b774ef6909df1d391771d"
+  },
+  "manifest_sha256": "b4fa6a606e6d3e21436adfb3153c281b657d7856665a2297295c5f469c01505b"
+}

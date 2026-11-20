@@ -1,0 +1,10 @@
+{"method": "GET", "path": "/splash/v1/models", "auth_ok": true, "time": 83499.064871375}
+{"method": "POST", "path": "/splash/v1/chat/completions", "model": "verify-model", "stream": true, "return_progress": true, "stream_options": {"include_usage": true}, "auth_ok": true, "payload_sha256": "88872131918d0675764c3001c53d40e444bce6cdd4781250ec8e2987045f1429", "time": 83499.076800916}
+{"phase": "prefill", "time": 83499.688296833}
+{"phase": "generation", "time": 83500.728669916}
+{"phase": "done", "time": 83501.167559083}
+{"method": "GET", "path": "/splash/v1/models", "auth_ok": true, "time": 83501.523618458}
+{"method": "POST", "path": "/splash/v1/chat/completions", "model": "verify-model", "stream": true, "return_progress": true, "stream_options": {"include_usage": true}, "auth_ok": true, "payload_sha256": "be42f159e4058aa4a84e5ff7b1cb76b37002e58ac0b59f8acdc775d7a70f6f1d", "time": 83501.539852791}
+{"phase": "prefill", "time": 83502.147057458}
+{"phase": "generation", "time": 83503.206655583}
+{"phase": "done", "time": 83503.650133708}

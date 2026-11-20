@@ -1,0 +1,5 @@
+{"method": "GET", "path": "/splash/v1/models", "auth_ok": true, "time": 83597.514770125}
+{"method": "POST", "path": "/splash/v1/chat/completions", "model": "verify-model", "stream": true, "return_progress": true, "stream_options": {"include_usage": true}, "auth_ok": true, "payload_sha256": "5a87452aa78304b97a175e3fdf929b9b2d61b88cc43097b8091f7e96a1d0c692", "time": 83597.527792875}
+{"phase": "prefill", "time": 83598.137307875}
+{"phase": "generation", "time": 83599.180719125}
+{"phase": "done", "time": 83599.617417208}
