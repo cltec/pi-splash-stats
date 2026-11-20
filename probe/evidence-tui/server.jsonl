@@ -1,0 +1,6 @@
+{"method": "POST", "path": "/v1/chat/completions", "model": "probe-model", "stream": true, "payload_sha256": "2a36c24ab2ce03147098a0b127ae880ce384bccf8b7f8caa2fad83126d66077f"}
+{"phase": "done"}
+{"method": "POST", "path": "/v1/chat/completions", "model": "probe-model", "stream": true, "payload_sha256": "883554c83584bf01601b3fc38133e01552445340e194764d35132a1f0c84c95f"}
+{"phase": "done"}
+{"method": "POST", "path": "/v1/chat/completions", "model": "probe-model", "stream": true, "payload_sha256": "39da9086407ce7fccb5853265e7a8f93481e38d96510329c009c09553f5c73f3"}
+{"phase": "done"}

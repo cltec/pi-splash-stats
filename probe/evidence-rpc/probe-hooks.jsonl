@@ -1,0 +1,28 @@
+{"t":1795169036126,"hook":"before_provider_headers","headerCount":1}
+{"t":1795169036167,"hook":"before_provider_request","messageCount":2}
+{"t":1795169036177,"hook":"after_provider_response","status":200}
+{"t":1795169036178,"hook":"provider_stream_event","provider":"probe","api":"openai-completions","model":"probe-model","dataType":"(no type field)"}
+{"t":1795169036179,"hook":"provider_stream_event","provider":"probe","api":"openai-completions","model":"probe-model","dataType":"(no type field)"}
+{"t":1795169036180,"hook":"provider_stream_event","provider":"probe","api":"openai-completions","model":"probe-model","dataType":"(no type field)"}
+{"t":1795169036181,"hook":"provider_stream_event","provider":"probe","api":"openai-completions","model":"probe-model","dataType":"(no type field)"}
+{"t":1795169036182,"hook":"provider_stream_event","provider":"probe","api":"openai-completions","model":"probe-model","dataType":"(no type field)"}
+{"t":1795169036183,"hook":"provider_stream_event","provider":"probe","api":"openai-completions","model":"probe-model","dataType":"(no type field)"}
+{"t":1795169036186,"hook":"before_provider_headers","headerCount":1}
+{"t":1795169036188,"hook":"before_provider_request","messageCount":4}
+{"t":1795169036191,"hook":"after_provider_response","status":200}
+{"t":1795169036193,"hook":"provider_stream_event","provider":"probe","api":"openai-completions","model":"probe-model","dataType":"(no type field)"}
+{"t":1795169036195,"hook":"provider_stream_event","provider":"probe","api":"openai-completions","model":"probe-model","dataType":"(no type field)"}
+{"t":1795169036197,"hook":"provider_stream_event","provider":"probe","api":"openai-completions","model":"probe-model","dataType":"(no type field)"}
+{"t":1795169036198,"hook":"provider_stream_event","provider":"probe","api":"openai-completions","model":"probe-model","dataType":"(no type field)"}
+{"t":1795169036200,"hook":"provider_stream_event","provider":"probe","api":"openai-completions","model":"probe-model","dataType":"(no type field)"}
+{"t":1795169036201,"hook":"provider_stream_event","provider":"probe","api":"openai-completions","model":"probe-model","dataType":"(no type field)"}
+{"t":1795169036205,"hook":"before_provider_headers","headerCount":1}
+{"t":1795169036207,"hook":"before_provider_request","messageCount":6}
+{"t":1795169036210,"hook":"after_provider_response","status":200}
+{"t":1795169036211,"hook":"provider_stream_event","provider":"probe","api":"openai-completions","model":"probe-model","dataType":"(no type field)"}
+{"t":1795169036213,"hook":"provider_stream_event","provider":"probe","api":"openai-completions","model":"probe-model","dataType":"(no type field)"}
+{"t":1795169036215,"hook":"provider_stream_event","provider":"probe","api":"openai-completions","model":"probe-model","dataType":"(no type field)"}
+{"t":1795169036216,"hook":"provider_stream_event","provider":"probe","api":"openai-completions","model":"probe-model","dataType":"(no type field)"}
+{"t":1795169036218,"hook":"provider_stream_event","provider":"probe","api":"openai-completions","model":"probe-model","dataType":"(no type field)"}
+{"t":1795169036220,"hook":"provider_stream_event","provider":"probe","api":"openai-completions","model":"probe-model","dataType":"(no type field)"}
+{"t":1795169037229,"hook":"before_provider_headers","headerCount":1}
