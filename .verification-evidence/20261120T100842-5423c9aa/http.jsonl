@@ -1,0 +1,4 @@
+{"method": "POST", "path": "/other/v1/chat/completions", "model": "verify-model", "stream": true, "return_progress": null, "stream_options": {"include_usage": true}, "auth_ok": true, "payload_sha256": "14d9286ffe1c46e24e080a6882695a4dd503c2337cdb14cfee8b68aa9b20f127", "time": 75644.6755965}
+{"phase": "prefill", "time": 75645.289722291}
+{"phase": "generation", "time": 75646.387616083}
+{"phase": "done", "time": 75646.828518583}

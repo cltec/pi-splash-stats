@@ -1,0 +1,23 @@
+{
+  "command": "run",
+  "scenario": "chat",
+  "coverage": [],
+  "unverified": [
+    "real Splash",
+    "launcher",
+    "tools",
+    "summaries",
+    "automatic/recovery compaction",
+    "remote/IPv6/auth failures",
+    "exact final transient counts/rates",
+    "narrow layout",
+    "other-extension coexistence",
+    "packed package unless --package supplied"
+  ],
+  "reason": "No /private/var/folders/qz/ylfmwkgs0x95yvm1xvfwppf00000gp/T/verifier-empty-package-f32m9ta8/package.json: this checkout is specification-only; implement the extension first.",
+  "status": "BLOCKED",
+  "scratch_removed": true,
+  "fixture_closed": true,
+  "evidence_survives": true,
+  "test_context": "Verifier infrastructure test only; no-op/missing package, NOT product proof."
+}

@@ -1,0 +1,293 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Publishing is irreversible. Never cancel an active release for a newer tag.
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Validate tag, identity, and publication gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      publish_enabled: ${{ steps.metadata.outputs.publish_enabled }}
+      tag: ${{ steps.metadata.outputs.tag }}
+      version: ${{ steps.metadata.outputs.version }}
+      package_name: ${{ steps.metadata.outputs.package_name }}
+      pi_version: ${{ steps.metadata.outputs.pi_version }}
+    steps:
+      - name: Check out the selected tag
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Validate ref, tag, version, repository, changelog, and Pi pin
+        id: metadata
+        env:
+          RELEASE_REF_TYPE: ${{ github.ref_type }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ENABLE_NPM_PUBLISH: ${{ vars.ENABLE_NPM_PUBLISH }}
+        run: node scripts/release.mjs verify
+
+      - name: Require a public package when publication is enabled
+        if: steps.metadata.outputs.publish_enabled == 'true'
+        env:
+          RELEASE_REF_TYPE: ${{ github.ref_type }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ENABLE_NPM_PUBLISH: ${{ vars.ENABLE_NPM_PUBLISH }}
+        run: node scripts/release.mjs assert-publishable
+
+  check:
+    name: Offline check (Node ${{ matrix.node }})
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - name: Check out the exact tag
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Revalidate the tag on this Node version
+        env:
+          RELEASE_REF_TYPE: ${{ github.ref_type }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ENABLE_NPM_PUBLISH: ${{ vars.ENABLE_NPM_PUBLISH }}
+        run: node scripts/release.mjs verify
+
+      - name: Run offline tests and the package allowlist check
+        run: npm run check
+
+  smoke:
+    name: Real Pi smoke (pinned baseline)
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the exact tag
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install the pinned Pi tarball outside the checkout
+        env:
+          PI_VERSION: ${{ needs.preflight.outputs.pi_version }}
+        run: |
+          set -euo pipefail
+          install_dir="$RUNNER_TEMP/pi-$PI_VERSION"
+          mkdir -p "$install_dir"
+          npm pack "@earendil-works/pi-coding-agent@$PI_VERSION" \
+            --pack-destination "$install_dir" \
+            --ignore-scripts \
+            --silent
+          tarball="$(find "$install_dir" -maxdepth 1 -name '*.tgz' -type f -print -quit)"
+          test -n "$tarball"
+          npm install --prefix "$install_dir" --ignore-scripts --no-audit --no-fund "$tarball"
+          test -x "$install_dir/node_modules/.bin/pi"
+          printf 'PI_BIN=%s\n' "$install_dir/node_modules/.bin/pi" >> "$GITHUB_ENV"
+
+      - name: Run the real Pi smoke test with PI_BIN
+        env:
+          PI_VERSION: ${{ needs.preflight.outputs.pi_version }}
+        run: npm run test:e2e
+
+      - name: Summarize sanitized smoke evidence
+        if: always()
+        run: node scripts/summarize-e2e.mjs
+
+      - name: Preserve sanitized smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-source-smoke
+          path: artifacts/e2e-result.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  package:
+    name: Pack once and check the release archive
+    needs: [preflight, check, smoke]
+    if: needs.preflight.outputs.publish_enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the exact tag
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Pack once and verify the tagged identity
+        env:
+          RELEASE_REF_TYPE: ${{ github.ref_type }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ENABLE_NPM_PUBLISH: ${{ vars.ENABLE_NPM_PUBLISH }}
+        run: node scripts/release.mjs prepare
+
+      - name: Install pinned Pi to check the exact release archive
+        env:
+          PI_VERSION: ${{ needs.preflight.outputs.pi_version }}
+        run: |
+          set -euo pipefail
+          install_dir="$RUNNER_TEMP/pi-host"
+          npm install --prefix "$install_dir" --ignore-scripts --no-audit --no-fund \
+            "@earendil-works/pi-coding-agent@$PI_VERSION"
+          printf 'PI_BIN=%s\n' "$install_dir/node_modules/.bin/pi" >> "$GITHUB_ENV"
+
+      - name: Exercise the exact archive that will be published
+        env:
+          PI_VERSION: ${{ needs.preflight.outputs.pi_version }}
+          PACKAGE_ARCHIVE: ${{ github.workspace }}/release/package.tgz
+        run: npm run test:e2e
+
+      - name: Summarize exact-archive smoke evidence
+        if: always()
+        run: node scripts/summarize-e2e.mjs
+
+      - name: Preserve exact-archive smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-archive-smoke
+          path: artifacts/e2e-result.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Preserve the checked archive, notes, and integrity record
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-release
+          path: release/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish the exact archive to npm (OIDC)
+    needs: [preflight, package]
+    if: needs.preflight.outputs.publish_enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out the exact tag
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node and the npm registry
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Require npm 11.5.1 or newer for trusted publishing
+        run: node scripts/release.mjs check-npm
+
+      - name: Download the checked release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: npm-release
+          path: release/
+
+      - name: Revalidate source and the exact archive before publication
+        id: publication
+        env:
+          RELEASE_REF_TYPE: ${{ github.ref_type }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ENABLE_NPM_PUBLISH: ${{ vars.ENABLE_NPM_PUBLISH }}
+        run: node scripts/release.mjs check-publication
+
+      - name: Publish the checked tarball
+        if: steps.publication.outputs.action == 'publish'
+        env:
+          ARCHIVE: ${{ github.workspace }}/release/package.tgz
+          PACKAGE_NAME: ${{ needs.preflight.outputs.package_name }}
+        run: |
+          set -euo pipefail
+          if [[ "$PACKAGE_NAME" == @* ]]; then
+            npm publish "$ARCHIVE" --access public --registry=https://registry.npmjs.org/ --ignore-scripts
+          else
+            npm publish "$ARCHIVE" --registry=https://registry.npmjs.org/ --ignore-scripts
+          fi
+
+      - name: Report a verified integrity-matching retry
+        if: steps.publication.outputs.action == 'skip'
+        run: echo "This exact archive is already on npm; continuing to the GitHub Release."
+
+  github-release:
+    name: Create the GitHub Release after publication
+    needs: [preflight, publish]
+    if: needs.preflight.outputs.publish_enabled == 'true' && needs.publish.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Download the checked release notes
+        uses: actions/download-artifact@v4
+        with:
+          name: npm-release
+          path: release/
+
+      - name: Create or leave the existing GitHub Release unchanged
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
+        run: |
+          if gh release view "$RELEASE_TAG" --json tagName >/dev/null 2>&1; then
+            echo "GitHub Release $RELEASE_TAG already exists; leaving it unchanged."
+          else
+            gh release create "$RELEASE_TAG" \
+              --verify-tag \
+              --title "$RELEASE_TAG" \
+              --notes-file release/notes.md \
+              --generate-notes
+          fi

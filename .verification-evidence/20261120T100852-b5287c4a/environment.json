@@ -1,0 +1,12 @@
+{
+  "pi": "/Users/cirolucio.tecce/.pi/agent/bin/pi",
+  "pi_version": "1.5.2",
+  "node_version": "v22.23.5",
+  "os": "macOS-26.7.3-arm64-arm-64bit-Mach-O",
+  "package": "/private/var/folders/qz/ylfmwkgs0x95yvm1xvfwppf00000gp/T/verifier-noop-package-atpnv9v5",
+  "target": "extension",
+  "source_sha256": {
+    "src/index.ts": "4554c00dbb28cad89d67afb301d893073eefca19bee50292764c7b8c3dc8bf03"
+  },
+  "manifest_sha256": "f3b4b6d4931c60398942aa656d7a0b48d08c1b9328bccb57f88b053e1d552799"
+}

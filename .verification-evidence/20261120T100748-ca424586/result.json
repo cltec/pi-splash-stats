@@ -1,0 +1,23 @@
+{
+  "command": "run",
+  "scenario": "json",
+  "coverage": [],
+  "unverified": [
+    "real Splash",
+    "launcher",
+    "tools",
+    "summaries",
+    "automatic/recovery compaction",
+    "remote/IPv6/auth failures",
+    "exact final transient counts/rates",
+    "narrow layout",
+    "other-extension coexistence",
+    "packed package unless --package supplied"
+  ],
+  "reason": "AssertionError: Non-TUI process exited before completion",
+  "status": "FAIL",
+  "scratch_removed": true,
+  "fixture_closed": true,
+  "evidence_survives": true,
+  "test_context": "Verifier infrastructure test only; no-op/missing package, NOT product proof."
+}

@@ -1,0 +1,8 @@
+{
+  "pi": "/Users/cirolucio.tecce/.pi/agent/bin/pi",
+  "pi_version": "1.5.2",
+  "node_version": "v22.23.5",
+  "os": "macOS-26.7.3-arm64-arm-64bit-Mach-O",
+  "package": "/Users/cirolucio.tecce/PersonalProjects/pi-splash-stats",
+  "target": "harness-only"
+}

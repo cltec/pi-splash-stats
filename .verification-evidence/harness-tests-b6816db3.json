@@ -1,0 +1,41 @@
+{
+  "purpose": "Verifier infrastructure only; no-op package is NOT the product",
+  "passed": true,
+  "runs": [
+    {
+      "evidence": "/Users/cirolucio.tecce/PersonalProjects/pi-splash-stats/.verification-evidence/20261120T100842-5423c9aa",
+      "exit_code": 0,
+      "status": "HARNESS_ONLY_PASS"
+    },
+    {
+      "evidence": "/Users/cirolucio.tecce/PersonalProjects/pi-splash-stats/.verification-evidence/20261120T100846-c037cdbf",
+      "exit_code": 0,
+      "status": "PASS"
+    },
+    {
+      "evidence": "/Users/cirolucio.tecce/PersonalProjects/pi-splash-stats/.verification-evidence/20261120T100852-b5287c4a",
+      "exit_code": 0,
+      "status": "PASS"
+    },
+    {
+      "evidence": "/Users/cirolucio.tecce/PersonalProjects/pi-splash-stats/.verification-evidence/20261120T100855-14b18963",
+      "exit_code": 0,
+      "status": "PASS"
+    },
+    {
+      "evidence": "/Users/cirolucio.tecce/PersonalProjects/pi-splash-stats/.verification-evidence/20261120T100857-47d6360d",
+      "exit_code": 0,
+      "status": "PASS"
+    },
+    {
+      "evidence": "/Users/cirolucio.tecce/PersonalProjects/pi-splash-stats/.verification-evidence/20261120T100900-f1cf8395",
+      "exit_code": 1,
+      "status": "FAIL"
+    },
+    {
+      "evidence": "/Users/cirolucio.tecce/PersonalProjects/pi-splash-stats/.verification-evidence/20261120T100901-03e86ebd",
+      "exit_code": 2,
+      "status": "BLOCKED"
+    }
+  ]
+}

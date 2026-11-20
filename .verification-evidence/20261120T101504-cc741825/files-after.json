@@ -1,0 +1,15 @@
+{
+  "config_hashes": {
+    "models.json": "a1cae9f657abde3fe59852e77267f26ec2662f7ad0ac363478996588fdc280d1",
+    "settings.json": "e0ac6c8cb61fc043d94db37c86dba3f79dd561b752dc34832c2215d5abc2e229",
+    "auth.json": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  "files": [
+    "agent/auth.json",
+    "agent/models-store.json",
+    "agent/models.json",
+    "agent/pi-debug.log",
+    "agent/settings.json",
+    "tmp/jiti/src-index.f7389e16.mjs"
+  ]
+}

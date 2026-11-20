@@ -1,0 +1,14 @@
+{
+  "config_hashes": {
+    "models.json": "5fab0ceeb321b1078c0ef19f32a063658e1906273b619e6e2180aee83ca11d79",
+    "settings.json": "e0ac6c8cb61fc043d94db37c86dba3f79dd561b752dc34832c2215d5abc2e229",
+    "auth.json": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  "files": [
+    "agent/auth.json",
+    "agent/models-store.json",
+    "agent/models.json",
+    "agent/pi-debug.log",
+    "agent/settings.json"
+  ]
+}
