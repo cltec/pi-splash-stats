@@ -98,8 +98,13 @@ async function expectIdleWithoutMessages(session) {
 
 async function exerciseSilentRpcScenario(session) {
   const commands = parseCommands(await session.request({ type: "get_commands" }, 30_000));
-  // The silent stats extension registers no commands of its own.
-  ensure(commands.every((command) => command.source !== "extension"), "command-missing");
+  // The stats extension registers no commands of its own. Pi reports some of its
+  // builtin features (e.g. the llama.cpp router) with a top-level `source: "extension"`
+  // even though `sourceInfo.source` is `"builtin"`; the packed path enables extensions
+  // (unlike the `-e` checkout path), so filter to non-builtin commands before asserting
+  // the package contributed none.
+  const nonBuiltin = commands.filter((command) => (command.sourceInfo?.source ?? "extension") !== "builtin");
+  ensure(nonBuiltin.length === 0, "command-missing");
   ensure(!commands.some((command) => command.name === "hello"), "command-missing");
 
   await expectIdleWithoutMessages(session);

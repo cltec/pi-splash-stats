@@ -347,6 +347,9 @@ export function normalizeArchiveEntries(stdout) {
   return entries.sort();
 }
 
+// GNU `tar --list --verbose --numeric-owner` parser. Retained as a pure, unit-tested
+// helper; the live packed path below uses the portable plain `tar -tf` listing and
+// `normalizeArchiveEntries` so it works under BSD tar too (no --quoting-style).
 const LISTING_LINE = /^([-d])[rwxStTs-]{9}\s+\S+\s+\d+\s+\S+\s+\S+\s+(.+)$/;
 
 export function parseArchiveListing(stdout) {
@@ -421,12 +424,11 @@ export function assertPackedAllowlist(entries, manifest) {
 }
 
 export async function inspectArchive(archive, source = process.env) {
+  // Plain `tar -tf` only: no GNU-only --quoting-style/--verbose/--numeric-owner, so the
+  // listing is portable across GNU and BSD tar. Paths are canonicalized here and the
+  // release allowlist (assertPackedAllowlist) enforces the exact published file set.
   const result = await runCapture("tar", [
     "--list",
-    "--verbose",
-    "--numeric-owner",
-    "--quoting-style=escape",
-    "--gzip",
     "--file",
     archive,
   ], {
@@ -436,7 +438,7 @@ export async function inspectArchive(archive, source = process.env) {
     maxBuffer: 2 * 1024 * 1024,
   });
   if (result.code !== 0) throw new HarnessError("archive-invalid");
-  return parseArchiveListing(result.stdout);
+  return normalizeArchiveEntries(result.stdout);
 }
 
 export async function extractArchive(archive, destination, source = process.env) {
