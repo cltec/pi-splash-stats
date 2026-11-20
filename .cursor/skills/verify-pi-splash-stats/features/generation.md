@@ -44,3 +44,11 @@ Preconditions: skill baseline; tools and summarization need additional seed/driv
 - Exact authoritative counts may correct downward; zero native rates mean unavailable.
 - Text output only proves generation began; it does not prove every raw field reached the extension.
 - No persistent report or minimum final-display delay is required. Do not add one to make a screenshot easier.
+- **`abort-generation` fixture scaffolding.** The driver writes Escape *before* it releases the
+  generation gate. The fixture therefore holds the final frames (`finish_reason`/`usage`/`[DONE]`)
+  for `ABORT_GENERATION_HOLD_SECONDS` (0.5 s) after the gate is released, **in the
+  `abort-generation` scenario only**, so Pi's real HTTP abort deterministically beats the
+  real stream completing in ~0.2–0.4 ms and ending the turn `stop` — a race that fails even with
+  no extension loaded. This is fixture scaffolding at the external protocol boundary, **not** a
+  real-backend property, and it changes no assertion (the journey still requires a real aborted
+  stop reason, cleared UI, one completion attempt, and clean teardown).
