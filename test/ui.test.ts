@@ -44,6 +44,21 @@ test("same-phase updates coalesce to at most one render per 100ms window", async
   controller.dispose();
 });
 
+test("generation phase coalesces same-phase updates after the immediate transition render", async () => {
+  const { adapter, calls } = makeUi();
+  const controller = new UiController(adapter);
+  for (let i = 0; i < 5; i++) controller.showGeneration(`Generating... ≈${i} tok`);
+  // Only the immediate prefill->generation transition render happened; the
+  // remaining four same-phase lines are still coalesced (SPEC 10.3).
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0], { method: "widget", args: [WIDGET_KEY, ["Generating... ≈0 tok"]] });
+  await sleep(COALESCE_MS + 30);
+  // Exactly one further coalesced render of the last line within the window.
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[1], { method: "widget", args: [WIDGET_KEY, ["Generating... ≈4 tok"]] });
+  controller.dispose();
+});
+
 test("phase change restores the working message immediately and renders the widget immediately", async () => {
   const { adapter, calls } = makeUi();
   const controller = new UiController(adapter);

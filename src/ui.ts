@@ -29,6 +29,7 @@ export class UiController {
   private lastPrefill: string | null = null;
   private lastGeneration: string | null = null;
   private ownsWorkingMessage = false;
+  private phase: "prefill" | "generation" | "none" = "none";
   private prefillDisabled = false;
   private generationDisabled = false;
   private disposed = false;
@@ -45,12 +46,14 @@ export class UiController {
       return;
     }
     if (this.prefillDisabled || line === this.lastPrefill) return;
+    this.phase = "prefill";
     this.schedule({ phase: "prefill", line }, false);
   }
 
   /**
-   * Show/replace the generation widget line. Phase changes restore the
-   * working message immediately and render immediately.
+   * Show/replace the generation widget line. The prefill→generation phase
+   * transition restores the working message and renders immediately; later
+   * same-phase updates coalesce within the 100 ms bound (SPEC 10.3).
    */
   showGeneration(line: string | null): void {
     if (this.disposed) return;
@@ -59,9 +62,13 @@ export class UiController {
       return;
     }
     if (this.generationDisabled || line === this.lastGeneration) return;
-    this.flushTimer();
-    this.restoreWorkingMessage();
-    this.schedule({ phase: "generation", line }, true);
+    const transition = this.phase !== "generation";
+    if (transition) {
+      this.flushTimer();
+      this.restoreWorkingMessage();
+    }
+    this.phase = "generation";
+    this.schedule({ phase: "generation", line }, transition);
   }
 
   /** Clear only this extension's owned UI (SPEC 8.3). */
@@ -77,6 +84,7 @@ export class UiController {
     }
     this.lastPrefill = null;
     this.lastGeneration = null;
+    this.phase = "none";
   }
 
   /** Cancel timers; no event-loop handle may survive shutdown (SPEC 10.3). */
