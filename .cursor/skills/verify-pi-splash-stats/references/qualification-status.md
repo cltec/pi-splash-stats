@@ -77,6 +77,44 @@ summary requests versus a fixture behavior change — an S5 decision to be docum
 SPECIFICATION.md §6/§10.2). Automatic/recovery compaction and explicit alternate-summary-model
 entries remain BLOCKED; see [features/summaries.md](../features/summaries.md).
 
+## S6h abort-generation race fix, executed 2026-11-20
+
+**Root cause (independently confirmed twice, including a no-op baseline reproduction).** In the
+`abort-generation` journey the driver writes Escape *just before* it releases the generation gate.
+The fixture then emitted `finish_reason` + `usage` + `[DONE]` **immediately** on gate release, so the
+real HTTP stream completed in ~0.2–0.4 ms — before Pi's abort path (PTY → event loop → HTTP cancel)
+landed. The turn completed with `stopReason: "stop"` and the journey's real-abort assertion
+(`"stopReason":"aborted"` in `/debug`) failed deterministically, with or without the extension loaded.
+
+**Fix (fixture timing scaffolding at the external protocol boundary, in the spirit of the existing
+gates).** After the generation gate is released, the fixture now holds the final frames for
+`ABORT_GENERATION_HOLD_SECONDS` (0.5 s) **in the `abort-generation` scenario only**, so the Escape
+abort deterministically beats the real HTTP completion. No assertion was added, weakened, or changed:
+the journey still requires a real aborted stop reason, cleared UI, exactly one completion attempt, and
+clean teardown. `chat`/`cached` and every other journey keep their current timing. See
+[features/generation.md](../features/generation.md).
+
+| Command | Exit | Result | Evidence |
+| --- | --- | --- | --- |
+| `scripts/verify.py run abort-generation` | 0 | PASS: real `stopReason: "aborted"`, one completion attempt, UI cleared, clean teardown | `.verification-evidence/20261120T164103-2c24f35e/` |
+| `scripts/verify.py run chat` | 0 | PASS (regression) | `.verification-evidence/20261120T164213-0a8ca5f9/` |
+| `scripts/verify.py run cached` | 0 | PASS (regression) | `.verification-evidence/20261120T164217-9da6a4bd/` |
+| `scripts/verify.py run non-splash` | 0 | PASS (regression) | `.verification-evidence/20261120T164224-dbdb8188/` |
+| `scripts/verify.py run switch` | 0 | PASS (regression) | `.verification-evidence/20261120T164230-6b9c9e6c/` |
+| `scripts/verify.py run abort-prefill` | 0 | PASS (regression) | `.verification-evidence/20261120T164239-7de97a45/` |
+| `scripts/verify.py run reload` | 0 | PASS (regression) | `.verification-evidence/20261120T164242-bad5ad16/` |
+| `scripts/verify.py run print` | 0 | PASS (regression) | `.verification-evidence/20261120T164248-63811714/` |
+| `scripts/verify.py run json` | 0 | PASS (regression) | `.verification-evidence/20261120T164251-17ca1824/` |
+| `scripts/verify.py run rpc` | 0 | PASS (regression) | `.verification-evidence/20261120T164254-22d12bcb/` |
+| `scripts/verify.py doctor` | 0 | READY_TO_LAUNCH | `.verification-evidence/20261120T164342-b0ba80ca/` |
+| `python3 -B scripts/test_verify.py` | 0 | 5 tests OK (no-op package; this suite does not drive abort-generation) | `.verification-evidence/harness-tests-c081b518.json` |
+
+**Boundary preserved.** Only `.cursor/skills/verify-pi-splash-stats/**` changed (this record,
+`features/generation.md`, and `scripts/verify.py`). No `src/`, `test/`, `e2e/`, `package.json`,
+`SPECIFICATION.md`, or other product file was touched. The fixture remains an external protocol
+boundary stand-in; the 0.5 s hold is scaffolding, not a real-backend behavior, and is scoped to the
+`abort-generation` scenario so no other journey's timing changed.
+
 ## Stand-in setup and unverified target work
 
 The stand-in used the **real installed Pi executable**, not fake Pi contexts or a container. It:

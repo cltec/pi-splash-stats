@@ -34,6 +34,12 @@ SCENARIOS = ("chat", "cached", "non-splash", "switch", "abort-prefill",
 # side-effect evidence instead of treating it as an unexpected write.
 SUMMARY_SCENARIOS = ("compact", "tree", "tree-negative")
 
+# Scaffolding-only hold (seconds) in the abort-generation fixture. After the driver
+# releases the generation gate it has already written Escape, so holding the final
+# frames briefly lets Pi's real HTTP abort deterministically win the race against
+# stream completion. NOT a real-backend property (see features/generation.md).
+ABORT_GENERATION_HOLD_SECONDS = 0.5
+
 
 class Blocked(Exception):
     pass
@@ -205,6 +211,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 emit({"content": text})
                 time.sleep(.2)
             gate("generation")
+            # Scaffolding (abort-generation only): the driver wrote Escape before
+            # releasing this gate; hold the final frames so the abort deterministically
+            # beats the real HTTP completion. Other scenarios keep current timing.
+            if self.server.scenario == "abort-generation":
+                time.sleep(ABORT_GENERATION_HOLD_SECONDS)
             emit(choices=[{"index": 0, "delta": {}, "finish_reason": "stop"}],
                  timings={"predicted_n": 9, "predicted_per_second": 82.4,
                           "prompt_per_second": 20.0, "prompt_n": 100, "cache_n": 20,
