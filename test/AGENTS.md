@@ -5,7 +5,7 @@
 
 ## Overview
 
-Offline `node:test` suites for the pure formatter, the Pi adapter, and tooling helpers used by packaging, e2e, and release. Tests run on Node's TypeScript stripping and must not launch Pi, run `npm pack`, or use the network.
+Offline `node:test` suites for the Pi adapter and tooling helpers used by packaging, e2e, and release. Tests run on Node's TypeScript stripping and must not launch Pi, run `npm pack`, or use the network.
 
 Temporary filesystem fixtures and isolated local Node child processes are allowed where the release tooling needs them. The e2e suite is separate and lives in `e2e/`; it is the only layer that launches Pi. `npm test` must stay fast and offline.
 
@@ -22,7 +22,7 @@ Temporary filesystem fixtures and isolated local Node child processes are allowe
 | Task | Command |
 | --- | --- |
 | All unit, wiring, and tooling tests | `npm test` |
-| One file | `node --test test/greeting.test.ts` |
+| One file | `node --test test/extension.test.ts` |
 | Package contents | `npm run check:package` |
 | Full local check | `npm run check` |
 
@@ -30,18 +30,15 @@ Temporary filesystem fixtures and isolated local Node child processes are allowe
 
 | Layer | Target |
 | --- | --- |
-| Unit | The pure formatter: empty input, whitespace-only input, trimming, normal names, punctuation and spaces inside a name. |
-| Wiring | Command registration, handler argument forwarding, `ctx.hasUI` true/false branches, notification level, custom message shape and options. |
+| Wiring | The silent adapter: no commands, tools, event listeners, messages, or startup notifications are registered or emitted; repeated registration (reload) stays silent. |
 | Tooling | Pure helpers used by packaging, e2e, and release: allowlist decisions, child environment allowlists, archive parsing, manifest validation, result sanitization, and release metadata. Release CLI tests may run the local Node binary in a temporary fixture with a child process. Do not spawn `npm pack` or Pi here. |
-| Contract | `/hello` behavior stays aligned with `README.md`, `src/AGENTS.md`, and the e2e smoke assertions. |
+| Contract | The skeleton's silence stays aligned with `README.md`, `src/AGENTS.md`, SPECIFICATION.md section 8.4, and the e2e smoke assertions. |
 
-Wiring tests use small fakes:
+Wiring tests use a small fake:
 
-- A fake `ExtensionAPI` that records `registerCommand(name, options)` and captures `sendMessage(message, options)`.
-- A fake context with `hasUI` and `ui.notify` for the UI branch.
-- Invoke the captured handler directly with an argument string and the fake context.
+- A deliberately partial fake `ExtensionAPI` that records `registerCommand`, `registerTool`, `on`, and `sendMessage` calls.
 
-Assert the observable contract, not private helper calls: exact greeting text, `"info"` level, `customType: "template-greeting"`, `display: true`, and `triggerTurn: false`.
+Assert the observable contract, not private helper calls: zero registrations and zero emitted messages.
 
 ## Conventions
 
@@ -50,7 +47,7 @@ Assert the observable contract, not private helper calls: exact greeting text, `
 - Keep fixtures inline. Reuse a fake only when the sharing is real.
 - Do not use snapshots, wall-clock timing, random data, or platform-specific paths.
 - A bug fix includes a test that fails without the fix.
-- When the example changes, update the tests and the e2e assertions in the same change. Do not delete assertions to make a change pass.
+- When the extension changes, update the tests and the e2e assertions in the same change. Do not delete assertions to make a change pass.
 - Do not put e2e integration tests in `test/`. Importing pure helpers from `e2e/harness.ts` is allowed.
 
 ## Cleanup and isolation
@@ -70,10 +67,9 @@ Assert the observable contract, not private helper calls: exact greeting text, `
 
 - [ ] `npm test` passes; output is pasted.
 - [ ] New behavior has a test; bug fixes have a regression test.
-- [ ] Both UI and headless branches are covered when wiring changes.
 - [ ] No network, real home directory, Pi process, or `npm pack` is used.
 - [ ] Temporary fixtures and child processes are cleaned up.
-- [ ] E2E smoke assertions are updated when the command contract changes.
+- [ ] E2E smoke assertions are updated when the extension contract changes.
 
 ## Troubleshooting
 

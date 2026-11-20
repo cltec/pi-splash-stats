@@ -44,7 +44,7 @@ PI_BIN=/absolute/path/to/pi npm run test:e2e
 
 Check the version against `scripts/quality.json` (1.5.2 for this template). An absolute `PI_BIN` selects the binary, and its version must equal the baseline; `PI_VERSION` can set the exact stable version only for a temporary experiment. CI installs that version into a temporary prefix outside the checkout; a random global Pi may not match.
 
-**Symptom:** `/hello` is discovered from the checkout but not from the packed archive.
+**Symptom:** the extension entry point is discovered from the checkout but not from the packed archive.
 
 - Check `package.json#pi` for the extension entry point.
 - Check that `files` includes the entry point and any resource the manifest references.
@@ -56,7 +56,7 @@ Check the version against `scripts/quality.json` (1.5.2 for this template). An a
 
 - Bounded shutdown means the runner kills the child after the timeout; the sanitized artifact records only the category.
 - Reproduce with a small temporary home and the same Pi binary. Do not reuse your real configuration.
-- Check the handler for unresolved promises, timers, or work that waits on a model. The example starts no turn.
+- Check the adapter for unresolved promises, timers, or work that waits on a model. The extension starts no turn.
 - Do not increase the timeout before checking for a hang or a leaked child process.
 
 **Symptom:** the packed path fails while listing or extracting the archive.
@@ -75,23 +75,14 @@ Cleanup must run in `finally` or test teardown on success and failure. Fix the h
 
 Only sanitized schema-1 summaries belong in the result file (default `artifacts/e2e-result.json`, or `E2E_RESULT_PATH`). `scripts/summarize-e2e.mjs` renders only known fields. Remove raw output from the artifact and keep it in the temporary directory that is deleted. Do not commit artifacts.
 
-## `/hello` does not appear in Pi
+## The extension appears to do nothing
+
+That is correct for the walking skeleton. If a later slice's behavior is missing:
 
 - From a checkout, load it explicitly: `pi -e ./src/index.ts`.
 - From a package, confirm it is installed and enabled in the current scope, and that the manifest path is correct.
-- Extension commands are not built-in slash commands; check that the extension loaded without a warning.
+- Confirm the extension loaded without a warning.
 - After changing a locally installed package, reload or reinstall as appropriate. A checkout loaded with `-e` is read at startup.
-- If multiple extensions register `hello`, Pi may expose suffixed invocations such as `/hello:1`. Remove or rename the duplicate.
-
-## The reply is missing in print or JSON mode
-
-`ctx.ui.notify` is for UI modes. Print and JSON modes have `ctx.hasUI === false`, and the starter sends a custom message with `display: true` instead. If the output is still missing:
-
-- Confirm the handler reaches the headless branch.
-- Confirm `triggerTurn: false` is intentional; the example must not start a model turn.
-- Do not write directly to stdout in RPC or JSON mode; Pi owns those protocol streams.
-
-In TUI and RPC modes, `ctx.hasUI` is true and the greeting is an info notification rather than a transcript message. That difference is expected.
 
 ## A change works locally but CI fails
 

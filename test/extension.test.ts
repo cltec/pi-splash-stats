@@ -1,49 +1,42 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import extension from "../src/index.ts";
 
-type Command = Parameters<ExtensionAPI["registerCommand"]>[1];
-
 function register() {
-  const commands = new Map<string, Command>();
+  const commands = new Map<string, unknown>();
   const messages: unknown[][] = [];
-  // Deliberately partial fake: unexpected API use fails instead of being silently ignored.
-  const pi = {
-    registerCommand(name: string, command: Command) {
-      assert.equal(commands.has(name), false, "command registered twice");
-      commands.set(name, command);
+  const registrations: string[] = [];
+  // Deliberately partial fake: any registration or messaging fails closed.
+  const api = {
+    registerCommand(name: string) {
+      commands.set(name, true);
+      registrations.push(`command:${name}`);
+    },
+    registerTool(name: string) {
+      registrations.push(`tool:${name}`);
+    },
+    on(event: string) {
+      registrations.push(`on:${event}`);
     },
     sendMessage(...args: unknown[]) { messages.push(args); },
-  } as unknown as ExtensionAPI;
-  extension(pi);
-  return { commands, messages };
+  };
+  extension(api as unknown as ExtensionAPI);
+  return { commands, messages, registrations };
 }
 
-test("registers one discoverable command with a description", () => {
-  const { commands, messages } = register();
-  assert.deepEqual([...commands.keys()], ["hello"]);
-  assert.ok(commands.get("hello")!.description);
+test("registers no commands, tools, event listeners, or startup messages", () => {
+  const { commands, messages, registrations } = register();
+  assert.deepEqual([...commands.keys()], []);
   assert.deepEqual(messages, []);
+  assert.deepEqual(registrations, []);
 });
 
-test("UI command notifies with formatted arguments and does not send a model message", async () => {
-  const { commands, messages } = register();
-  const notifications: unknown[][] = [];
-  await commands.get("hello")!.handler("  Ada  ", {
-    hasUI: true,
-    ui: { notify: (...args: unknown[]) => notifications.push(args) },
-  } as unknown as ExtensionCommandContext);
-  assert.deepEqual(notifications, [["Hello, Ada!", "info"]]);
-  assert.deepEqual(messages, []);
-});
-
-test("headless command emits a visible custom message without triggering a model turn", async () => {
-  const { commands, messages } = register();
-  // No ui property: any accidental UI call fails this test.
-  await commands.get("hello")!.handler(" \t ", { hasUI: false } as ExtensionCommandContext);
-  assert.deepEqual(messages, [[
-    { customType: "template-greeting", content: "Hello, world!", display: true },
-    { triggerTurn: false },
-  ]]);
+test("repeated registration stays silent (reload does not accumulate state)", () => {
+  for (let i = 0; i < 2; i++) {
+    const { commands, messages, registrations } = register();
+    assert.deepEqual([...commands.keys()], []);
+    assert.deepEqual(messages, []);
+    assert.deepEqual(registrations, []);
+  }
 });

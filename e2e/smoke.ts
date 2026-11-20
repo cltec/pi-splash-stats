@@ -52,7 +52,6 @@ function headlessArguments() {
   return [
     "--mode",
     "json",
-    "-p",
     "--no-session",
     "--no-approve",
     "--no-tools",
@@ -63,7 +62,6 @@ function headlessArguments() {
     "--no-extensions",
     "-e",
     CHECKOUT_ENTRY,
-    "/hello Ada",
   ];
 }
 
@@ -85,20 +83,6 @@ function safeCommandNames(commands) {
   return names;
 }
 
-async function expectGreeting(session, message, expected) {
-  const before = session.notificationCount();
-  const response = await session.request({ type: "prompt", message }, 10_000);
-  ensure(isRecord(response) && response.disposition === "handled", "unexpected-agent-run");
-
-  const notifications = await session.waitForNotifications(before + 1, 5_000);
-  const additions = notifications.slice(before);
-  ensure(additions.length === 1, "notification-mismatch");
-  const notification = additions[0];
-  ensure(notification.method === "notify", "notification-mismatch");
-  ensure(notification.message === expected, "notification-mismatch");
-  ensure((notification.notifyType ?? "info") === "info", "notification-mismatch");
-}
-
 async function expectIdleWithoutMessages(session) {
   const state = await session.request({ type: "get_state" }, 5_000);
   ensure(isRecord(state), "protocol-error");
@@ -112,20 +96,14 @@ async function expectIdleWithoutMessages(session) {
   ensure(messages.messages.length === 0, "unexpected-messages");
 }
 
-async function exerciseRpcScenario(session, expectedOrigin) {
+async function exerciseSilentRpcScenario(session) {
   const commands = parseCommands(await session.request({ type: "get_commands" }, 30_000));
-  ensure(commands.some((command) => command.name === "hello"), "command-missing");
+  // The silent stats extension registers no commands of its own.
+  ensure(commands.every((command) => command.source !== "extension"), "command-missing");
+  ensure(!commands.some((command) => command.name === "hello"), "command-missing");
 
-  const hello = commands.find((command) => command.name === "hello");
-  ensure(hello.source === "extension", "command-source-mismatch");
-  ensure(isRecord(hello.sourceInfo), "command-source-mismatch");
-  ensure(hello.sourceInfo.origin === expectedOrigin, "command-source-mismatch");
-
-  await expectGreeting(session, "/hello Ada", "Hello, Ada!");
-  await expectGreeting(session, "/hello    ", "Hello, world!");
   await expectIdleWithoutMessages(session);
-
-  ensure(session.notificationCount() === 2, "notification-mismatch");
+  ensure(session.notificationCount() === 0, "notification-mismatch");
   session.assertHealthy();
   return safeCommandNames(commands);
 }
@@ -176,7 +154,7 @@ async function runRpcScenario(options) {
       cwd: root.cwd,
       env: environment,
     });
-    commands = await exerciseRpcScenario(session, options.expectedOrigin);
+    commands = await exerciseSilentRpcScenario(session);
   } catch (error) {
     failure = toHarnessError(error);
   } finally {
@@ -193,7 +171,6 @@ async function checkoutScenario(context) {
     ...context,
     rootLabel: "checkout",
     args: checkoutArguments(),
-    expectedOrigin: "top-level",
   });
 }
 
@@ -265,7 +242,7 @@ async function packedArchiveScenario(context) {
       cwd: root.cwd,
       env: environment,
     });
-    commands = await exerciseRpcScenario(session, "package");
+    commands = await exerciseSilentRpcScenario(session);
   } catch (error) {
     failure = toHarnessError(error);
   } finally {
@@ -300,12 +277,10 @@ async function headlessScenario(context) {
     session.assertHealthy();
     ensure(exit.code === 0, "process-failed");
 
+    // The silent extension emits no custom messages and no transcript
+    // entries; user/assistant traffic would have failed the session already.
     const messages = session.getCustomMessages();
-    ensure(messages.length === 1, "message-mismatch");
-    ensure(messages[0].customType === "template-greeting", "message-mismatch");
-    ensure(messages[0].content === "Hello, Ada!", "message-mismatch");
-    ensure(messages[0].display === true, "message-mismatch");
-    commands = ["hello"];
+    ensure(messages.length === 0, "message-mismatch");
   } catch (error) {
     failure = toHarnessError(error);
   } finally {

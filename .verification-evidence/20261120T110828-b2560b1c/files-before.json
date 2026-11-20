@@ -1,0 +1,11 @@
+{
+  "config_hashes": {
+    "models.json": "c125f50665fc051e27f7ff6e0093c153828e55a0cef0c898ddd1893da3479bec",
+    "settings.json": "667ee6f7b553c20c504cccbf0ce455a37a9d41c9c42af93265c0f4110bb2c264",
+    "auth.json": null
+  },
+  "files": [
+    "agent/models.json",
+    "agent/settings.json"
+  ]
+}

@@ -5,16 +5,15 @@
 
 ## Overview
 
-Extension source. There is no build step: Pi loads these TypeScript files directly. `src/index.ts` is the Pi adapter; `src/greeting.ts` is pure and has no Pi imports.
+Extension source. There is no build step: Pi loads these TypeScript files directly. `src/index.ts` is the thin Pi adapter; it is a silent walking skeleton. Later slices add pure modules (identity, discovery, progress, formatting, transport, UI) that the adapter wires up.
 
 ### Key files
 
 | File | Purpose |
 | --- | --- |
-| `src/index.ts` | Exports the extension function, registers `/hello`, formats the reply, and chooses the UI or message path. |
-| `src/greeting.ts` | Pure greeting formatting: trim, fallback to `world`, return `Hello, NAME!`. No I/O, state, or host imports. |
+| `src/index.ts` | Exports the extension function. Currently registers nothing and emits nothing in any mode; later slices add event registration and wiring here. |
 
-The exact formatter export is an implementation detail. Its behavior is not: trim the argument, use `world` when the result is empty, and return the text in the `Hello, NAME!` shape.
+Keep the adapter thin: it reads Pi inputs, calls pure modules, and chooses an output sink. Pure modules never import Pi.
 
 ## Setup and environment
 
@@ -24,48 +23,37 @@ The exact formatter export is an implementation detail. Its behavior is not: tri
 - Pi supplies the host package at runtime. Do not install it in this repository.
 - There is no lint, typecheck, or build. Node strips types; it does not check them.
 
-## Command contract
+## Behavior contract
 
-`/hello [name]`:
+The walking skeleton registers no commands, tools, event listeners, messages, or startup notifications, and produces no output in TUI, RPC, print, or JSON modes.
 
-| Input | Text |
-| --- | --- |
-| `/hello` | `Hello, world!` |
-| `/hello Ada` | `Hello, Ada!` |
-| `/hello   Ada   ` | `Hello, Ada!` |
+Later slices (per SPECIFICATION.md) must keep RPC, print, and JSON modes completely silent and must not add slash commands, tools, or model-visible instructions. TUI statistics render only when `ctx.mode === "tui"`, using `ctx.mode` together with `ctx.hasUI`, never `hasUI` alone.
 
-The handler receives the raw argument string.
-
-- `ctx.hasUI === true` (TUI and RPC): `ctx.ui.notify(text, "info")`.
-- `ctx.hasUI === false` (print and JSON): `pi.sendMessage({ customType: "template-greeting", content: text, display: true }, { triggerTurn: false })`.
-
-Do not trigger a model turn. Do not write the message to stdout; Pi owns the protocol streams.
+Do not write to stdout; Pi owns the protocol streams.
 
 ## Conventions
 
 - The starter imports host types only: `import type { ExtensionAPI } from "@earendil-works/pi-coding-agent"`. Runtime imports from a host peer are legitimate because Pi supplies the package; use `import type` when only types are needed so unit tests stay fake-friendly. Adding a separate npm dependency is a reviewed decision.
-- Export a default function that accepts `pi: ExtensionAPI`. Register commands inside it; do not use top-level side effects.
+- Export a default function that accepts `pi: ExtensionAPI`. Register commands inside it when a slice adds them; do not use top-level side effects.
 - Keep formatting and other decision logic pure and in a separate module. The adapter should only read Pi inputs, call pure code, and choose an output sink.
-- Do not add global state, timers, subprocesses, file access, configuration, or network calls for the example.
-- If you add a resource later, implement cancellation and cleanup, including on errors and shutdown, and add tests for the cleanup path.
+- Do not add global state, timers, subprocesses, file access, configuration, or network calls for the skeleton.
+- If a later slice adds a resource, implement cancellation and cleanup, including on errors and shutdown, and add tests for the cleanup path.
 - Avoid parameter properties, enums, and namespaces. Use plain fields and string unions.
-- Do not log argument content, prompts, secrets, or environment values. The greeting text is user-provided input; do not treat it as a command or HTML.
-- The custom message type is `template-greeting`. Rename it only together with the example, tests, e2e assertions, and docs.
+- Do not log prompt content, secrets, or environment values. Statistics are transient UI content; never write prompts, model text, or credentials to logs or files.
 
 ## Patterns to follow
 
 | For | Reference | Pattern |
 | --- | --- | --- |
-| Pure logic | `src/greeting.ts` | deterministic input to output; no host import |
-| Pi wiring | `src/index.ts` | register once; narrow adapter; explicit UI branch |
-| Headless output | `src/index.ts` | custom message with `display: true`, `triggerTurn: false` |
+| Pi wiring | `src/index.ts` | register once (or register nothing); narrow adapter; no top-level side effects |
+| Pure logic (later slices) | new `src/*.ts` modules | deterministic input to output; no host import |
 
 ## Tests and checks
 
 | Task | Command |
 | --- | --- |
 | Unit, wiring, and tooling tests | `npm test` |
-| Single relevant file | `node --test test/greeting.test.ts` |
+| Single relevant file | `node --test test/extension.test.ts` |
 | Full local check | `npm run check` |
 | Real Pi load and command | `npm run test:e2e` |
 
@@ -74,8 +62,8 @@ Wiring tests use a fake `ExtensionAPI` and a fake context. Do not launch Pi from
 ## Pull request checklist
 
 - [ ] `npm run check` passes; output is pasted.
-- [ ] The pure behavior and both UI/headless branches have tests.
-- [ ] `npm run test:e2e` passes if wiring, command behavior, or package loading changed.
+- [ ] New behavior has offline tests, including the no-provider-call paths.
+- [ ] `npm run test:e2e` passes if wiring, behavior, or package loading changed.
 - [ ] Docs and `CHANGELOG.md` are updated for user-visible behavior.
 - [ ] No new runtime dependency and no top-level side effect.
 
@@ -83,5 +71,4 @@ Wiring tests use a fake `ExtensionAPI` and a fake context. Do not launch Pi from
 
 - `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`: remove parameter properties, enums, or namespaces.
 - `Cannot find package '@earendil-works/pi-coding-agent'` during tests: the test process does not install the host. Use `import type` and inject fakes, or provide a stub if the extension legitimately uses host runtime helpers. Do not put the host in `dependencies`.
-- `/hello` is missing in Pi: confirm the extension is loaded (`pi -e ./src/index.ts` from the checkout, or the manifest path is correct in the packed package).
-- Nothing appears in print or JSON mode: check that the `ctx.hasUI === false` branch calls `pi.sendMessage`; `ctx.ui.notify` is for UI modes.
+- Extension appears to do nothing: that is correct for the walking skeleton. Confirm it is loaded (`pi -e ./src/index.ts` from the checkout, or the manifest path is correct in the packed package); user-visible behavior arrives in later slices.

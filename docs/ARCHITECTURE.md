@@ -1,6 +1,6 @@
 # Architecture
 
-This repository is a small Pi extension template. It demonstrates a complete path from a command invocation to a visible result, with a thin Pi adapter, pure logic, and layered tests. It intentionally does not include a service, configuration, persistent state, or a build pipeline.
+This repository is the `pi-splash-stats` Pi extension. It currently contains a silent walking skeleton: a thin Pi adapter that registers nothing, plus layered tests. It intentionally does not include a service, configuration, persistent state, or a build pipeline. Later slices add statistics logic behind the same structure (SPECIFICATION.md sections 10.1–10.3).
 
 ## Goals and non-goals
 
@@ -24,25 +24,19 @@ This repository is a small Pi extension template. It demonstrates a complete pat
 ```mermaid
 flowchart LR
   User[User] --> Pi[Pi process]
-  Pi -->|loads| Ext[Extension entry point]
-  Ext -->|registers| Command[/hello command/]
-  User -->|invokes| Command
-  Command --> Pure[Pure greeting formatter]
-  Pure --> Adapter{ctx.hasUI?}
-  Adapter -->|yes| Notify[ctx.ui.notify info]
-  Adapter -->|no| Message[pi.sendMessage custom message]
-  Notify --> User
-  Message --> Session[Session transcript]
+  Pi -->|loads| Ext[Extension entry point src/index.ts]
+  Ext -->|registers nothing| Silent[Silent adapter]
+  Silent -.->|later slices| Stats[Discovery / progress / UI]
+  Stats --> User
 ```
 
-Pi owns the session, provider transport, command dispatch, and output protocol. The extension owns only the command registration, the formatting decision, and the choice of output channel. It does not call a model, open a connection, read a file, or retain state between invocations.
+Pi owns the session, provider transport, command dispatch, and output protocol. The extension currently owns nothing user-visible: it registers no command and produces no output. Later slices add statistics observation and TUI-only rendering behind the adapter. The extension does not call a model and does not retain state.
 
 ## Modules
 
 | Module | Responsibility | Does not |
 | --- | --- | --- |
-| `src/index.ts` | Default-export the extension function; register `/hello`; call the formatter; choose notification versus custom message. | Format text or perform I/O. |
-| `src/greeting.ts` | Pure formatting: trim the argument, fall back to `world`, return `Hello, NAME!`. | Import Pi, read configuration, or keep state. |
+| `src/index.ts` | Default-export the extension function; currently a silent no-op adapter. Later slices add event registration, dependency wiring, and session lifecycle here. | Perform I/O or contain statistics logic. |
 | `package.json` | Metadata, scripts, Pi entry-point manifest, and package allowlist. | Contain runtime dependencies in the starter. |
 | `scripts/quality.json` | Pin the Pi version used by e2e and CI. | Configure the extension at runtime. |
 | `test/` | Offline unit, wiring, and tooling tests, including temporary release-CLI fixtures and isolated local Node subprocesses. | Launch Pi, run `npm pack`, or use the network. |
@@ -50,21 +44,16 @@ Pi owns the session, provider transport, command dispatch, and output protocol. 
 
 The starter imports the host package for types only, which keeps its test process free of a runtime host dependency and makes the adapter replaceable with a fake. Runtime imports from a host peer are legitimate because Pi supplies that package; the type-only starter import is a testability choice, not a ban.
 
-## Command flow
+## Behavior flow (walking skeleton)
 
 1. Pi loads the extension entry point. From a checkout, that is `pi -e ./src/index.ts`; from a package, Pi follows the manifest in `package.json`.
-2. The default export receives an `ExtensionAPI` and registers `hello` with a description and handler.
-3. Pi invokes the handler with the raw argument text and a command context.
-4. `src/index.ts` passes the argument to the pure formatter.
-5. The formatter trims the input. If the result is empty, it substitutes `world`; otherwise it uses the trimmed name. It returns the text in the `Hello, NAME!` shape.
-6. If `ctx.hasUI` is true, the handler calls `ctx.ui.notify(text, "info")`. TUI and RPC modes have UI.
-7. If `ctx.hasUI` is false, the handler calls `pi.sendMessage` with `customType: "template-greeting"`, `content: text`, and `display: true`, plus `{ triggerTurn: false }`. Print and JSON modes take this path. The message is visible but does not start a model turn.
+2. The default export receives an `ExtensionAPI` and intentionally does nothing: no commands, tools, event listeners, messages, or startup notifications are registered in any mode.
 
-This split keeps interactive feedback idiomatic without assuming a terminal. See [ADR 0001](adr/0001-thin-extension-and-layered-tests.md).
+Later slices (SPECIFICATION.md section 10.1) split behavior into pure modules (`identity.ts`, `discovery.ts`, `progress.ts`, `format.ts`, `transport.ts`, `ui.ts`) wired by this adapter. RPC, print, and JSON modes must remain completely silent (section 8.4, AC-13); TUI rendering uses `ctx.mode === "tui"`, not `hasUI` alone. See [ADR 0001](adr/0001-thin-extension-and-layered-tests.md).
 
 ## Loading and packaging
 
-A local checkout is loaded directly with `-e`; Pi handles TypeScript. For the packed path, e2e obtains a tarball (by packing the current tree, or via `PACKAGE_ARCHIVE` for an exact checked archive), lists it with system GNU-compatible `tar`, accepts only regular files and directories, extracts it, and loads the extracted directory through a temporary Pi `settings.json` `packages` entry. Pi discovers the command from the package manifest it finds there. The runner does not run `pi install` or contact a registry, so npm resolution and the install command are not covered.
+A local checkout is loaded directly with `-e`; Pi handles TypeScript. For the packed path, e2e obtains a tarball (by packing the current tree, or via `PACKAGE_ARCHIVE` for an exact checked archive), lists it with system GNU-compatible `tar`, accepts only regular files and directories, extracts it, and loads the extracted directory through a temporary Pi `settings.json` `packages` entry. Pi loads the extension from the package manifest it finds there. The runner does not run `pi install` or contact a registry, so npm resolution and the install command are not covered.
 
 Both loading paths are exercised because they fail differently:
 
@@ -77,22 +66,18 @@ The package is an allowlist: `package.json`, `README.md`, `LICENSE`, `CHANGELOG.
 
 | Situation | Behavior |
 | --- | --- |
-| Blank or whitespace-only argument | The formatter returns `Hello, world!`. |
-| Normal argument with surrounding whitespace | The formatter trims it and returns `Hello, NAME!`. |
-| Interactive TUI or RPC mode | An info notification is shown. |
-| Print or JSON mode | A visible custom message is added; no model turn starts. |
-| Handler throws | Pi reports the extension error; there is no hidden fallback. Keep the handler small enough to avoid this. |
+| Extension loaded in any mode | Nothing is registered and no output is produced; ordinary Pi behavior is unchanged. |
 | Pi binary missing or version-mismatched in e2e | The e2e runner fails before exercising the extension. Use an absolute `PI_BIN`; its version must match `scripts/quality.json` unless `PI_VERSION` is set for a temporary experiment. |
 | Packed archive has non-file entries or system tar is unavailable | The archive check fails before Pi loads it; use a GNU-compatible `tar` and a package containing only regular files and directories. |
 | Extra file added to the package | `npm run check:package` fails; fix the allowlist deliberately or remove the file. |
 
-The starter has no background work to cancel and no persistent resource to clean up. If a fork adds a subprocess, server, timer, temporary file, or open handle, cancellation and cleanup become part of this table and require tests.
+The skeleton has no background work to cancel and no persistent resource to clean up. If a later slice adds a subprocess, server, timer, temporary file, or open handle, cancellation and cleanup become part of this table and require tests.
 
 ## Security and data
 
-- The example reads no environment variables, files, or Pi configuration.
+- The extension reads no environment variables, files, or Pi configuration.
 - It makes no network request and does not invoke a model.
-- It emits only the greeting text to the Pi UI or session message; it does not log arguments or session content.
+- It emits no output and does not log anything.
 - Extensions run with Pi's operating-system permissions. Installing an extension is a trust decision.
 - Packaging excludes agent instructions, tests, e2e files, docs, environment files, and credentials.
 
@@ -104,7 +89,7 @@ See [`../SECURITY.md`](../SECURITY.md).
 - Pi 1.5.2 is the baseline in `scripts/quality.json`; CI installs that version into a temporary prefix outside the checkout, which requires network. Test execution itself is offline.
 - CI runs the checks on Node 22 and 24 on Linux; local verification here uses Node 22. Other platforms are unverified.
 - There is no lint, typecheck, or build. Node strips TypeScript types without checking them, so runtime tests and review carry the correctness burden.
-- `npm run check` covers unit, wiring, tooling, and package contents. `npm run test:e2e` covers real Pi loading, command discovery, and the headless custom-message path.
+- `npm run check` covers unit, wiring, tooling, and package contents. `npm run test:e2e` covers real Pi loading, command discovery (asserting none are registered), and the silent headless JSON path.
 
 See [`TESTING.md`](TESTING.md) for the test layers and [`TEMPLATE-SETUP.md`](TEMPLATE-SETUP.md) for adapting the template.
 

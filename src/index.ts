@@ -1,20 +1,13 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { formatGreeting } from "./greeting.ts";
 
-/** Minimal example adapter; replace the command, not the engineering baseline. */
-export default function extension(pi: ExtensionAPI): void {
-  pi.registerCommand("hello", {
-    description: "Example: greet a name without calling a model",
-    handler: async (args, ctx) => {
-      const text = formatGreeting(args);
-      if (ctx.hasUI) {
-        ctx.ui.notify(text, "info");
-      } else {
-        pi.sendMessage(
-          { customType: "template-greeting", content: text, display: true },
-          { triggerTurn: false },
-        );
-      }
-    },
-  });
+/**
+ * Pi adapter for pi-splash-stats.
+ *
+ * Walking skeleton: the extension intentionally registers no commands,
+ * tools, messages, or startup notifications and produces no output in any
+ * mode (TUI, RPC, print, or JSON). Statistics behavior is added by later
+ * slices behind this thin adapter.
+ */
+export default function extension(_pi: ExtensionAPI): void {
+  // Intentionally empty: no user-visible behavior.
 }

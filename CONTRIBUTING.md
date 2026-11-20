@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for improving this Pi extension template. The example is intentionally small; keep changes small too.
+Thanks for improving `pi-splash-stats`. The extension is intentionally small; keep changes small too.
 
 ## Before you start
 
@@ -32,14 +32,14 @@ To try the checkout in Pi:
 pi -e ./src/index.ts
 ```
 
-Then run `/hello` and `/hello Ada`.
+The extension is silent, so an ordinary session behaves exactly as if it were not installed.
 
 ## Commands
 
 | Task | Command |
 | --- | --- |
 | Unit, wiring, and tooling tests | `npm test` |
-| Single test file | `node --test test/greeting.test.ts` |
+| Single test file | `node --test test/extension.test.ts` |
 | Package contents | `npm run check:package` |
 | Full local check | `npm run check` |
 | End-to-end tests | `npm run test:e2e` |

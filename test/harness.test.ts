@@ -24,7 +24,7 @@ const manifest = {
   pi: { extensions: ["./src/index.ts"] },
 };
 const rootFiles = ["package.json", "README.md", "LICENSE", "CHANGELOG.md"];
-const validEntries = [...rootFiles, "src/greeting.ts", "src/index.ts"];
+const validEntries = [...rootFiles, "src/index.ts"];
 
 function isCategory(category) {
   return (error) => error instanceof HarnessError && error.category === category;

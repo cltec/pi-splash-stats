@@ -7,9 +7,9 @@
 
 Real-Pi end-to-end checks. These are the only tests allowed to launch Pi. The smoke runner verifies three paths:
 
-1. **Checkout RPC:** Pi loads `src/index.ts` with `-e` in RPC mode; the test discovers `hello`, invokes it, and checks the notification.
-2. **Headless JSON:** Pi runs `--mode json -p`, loads the checkout with `-e`, invokes `/hello Ada`, and the test asserts the visible `template-greeting` custom message and a clean exit.
-3. **Packed archive:** the runner packs the current tree, or reuses an exact archive via `PACKAGE_ARCHIVE`. It lists and extracts the tarball with a system GNU-compatible `tar` (regular files and directories only), verifies the package allowlist, writes a temporary Pi `settings.json` whose `packages` entry points at the extracted directory, and starts Pi in RPC mode. Pi discovers the command from the manifest.
+1. **Checkout RPC:** Pi loads `src/index.ts` with `-e` in RPC mode; the test asserts the silent extension registers no commands and produces no notifications.
+2. **Headless JSON:** Pi runs `--mode json`, loads the checkout with `-e`, and the test asserts the silent extension emits no custom messages and exits cleanly.
+3. **Packed archive:** the runner packs the current tree, or reuses an exact archive via `PACKAGE_ARCHIVE`. It lists and extracts the tarball with a system GNU-compatible `tar` (regular files and directories only), verifies the package allowlist, writes a temporary Pi `settings.json` whose `packages` entry points at the extracted directory, and starts Pi in RPC mode. Pi loads the extension from the manifest; the test asserts it registers no commands.
 
 The packed path proves the release-shape allowlist and manifest; it does **not** run `pi install` or install from an npm registry. Those paths are a known coverage limit. Say so when reporting e2e evidence.
 
@@ -35,7 +35,7 @@ Every e2e run must use a temporary root containing its own home, Pi config direc
 - Pass the explicit environment allowlist: `PATH`, `HOME`, `USERPROFILE`, `TMPDIR`, `XDG_CONFIG_HOME`, `XDG_CACHE_HOME`, `PI_CODING_AGENT_DIR`, `PI_OFFLINE=1`, `PI_SKIP_VERSION_CHECK=1`, `PI_TELEMETRY=0`, `LANG=C.UTF-8`, and `CI=1`.
 - Never spread `process.env` into the child. Provider keys, proxy variables, shell state, and user configuration must not leak in.
 - Load the packed path from the extracted local directory through temporary Pi settings. Do not run `pi install` or contact a registry.
-- Do not send a model prompt (a normal user message). Exercise command discovery and `/hello`; extension commands are handled without a provider call.
+- Do not send a model prompt (a normal user message). Exercise command discovery and silence; the extension must need no provider call for its smoke scenarios.
 
 ## Bounded shutdown and cleanup
 
@@ -56,15 +56,15 @@ The default path is `artifacts/e2e-result.json`; `E2E_RESULT_PATH` overrides it 
 
 ## Assertions to maintain
 
-The starter smoke checks must verify:
+The smoke checks must verify:
 
 - The selected Pi binary reports exactly the expected version (baseline or explicit temporary override).
-- The checkout RPC path starts Pi, lists `hello`, invokes it without starting a model turn, and produces `Hello, Ada!` and `Hello, world!` for a blank argument through the notification channel.
-- The headless JSON path exits cleanly and emits exactly one visible `template-greeting` custom message with the expected content and `display: true`.
-- The packed archive path lists/extracts only regular files and directories, contains only approved files (no agent docs, tests, e2e files, docs, secrets, or tarballs), and discovers the command with the package origin.
+- The checkout RPC path starts Pi and lists no extension commands, stays idle, and produces no notifications.
+- The headless JSON path exits cleanly and emits no custom messages.
+- The packed archive path lists/extracts only regular files and directories, contains only approved files (no agent docs, tests, e2e files, docs, secrets, or tarballs), and loads the extension from the manifest with no registered commands.
 - Both RPC paths end idle with no unexpected messages.
 
-When you replace the example, replace these assertions with the new command contract. Do not weaken them to make a failure pass.
+Later slices replace these assertions with the statistics contract from SPECIFICATION.md. Do not weaken them to make a failure pass.
 
 ## Security
 
@@ -82,7 +82,7 @@ When you replace the example, replace these assertions with the new command cont
 - [ ] No provider call, no inherited credentials, and no `pi install` or registry dependency.
 - [ ] Bounded shutdown and cleanup completed; no processes or files remain.
 - [ ] Only sanitized schema-1 artifacts were produced; none were committed.
-- [ ] Smoke assertions match the current example.
+- [ ] Smoke assertions match the current extension contract.
 
 ## Troubleshooting
 

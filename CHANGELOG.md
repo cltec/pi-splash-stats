@@ -4,7 +4,9 @@ Notable changes to this project. Entries are grouped by release; the latest unre
 
 ## [Unreleased]
 
-No unreleased changes.
+- Renamed the package from the starter template to `pi-splash-stats` and replaced the example command with a silent walking skeleton: `src/index.ts` registers no commands, tools, messages, or startup notifications in any mode.
+- Removed the example command, its pure module, and all related assertions; offline tests, smoke scenarios, and docs now assert silence (no commands, no custom messages, no notifications, clean exit) instead of the example behavior.
+- Preserved the template's license, package allowlist, peer dependencies, Node/Pi baselines, and test isolation; publishing remains disabled with `"private": true`.
 
 ## [0.1.0]
 

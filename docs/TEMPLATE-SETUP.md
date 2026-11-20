@@ -1,8 +1,6 @@
 # Template setup
 
-This starter works as-is, but it is still a template. Work through this checklist before treating the repository as a real extension.
-
-The placeholders to replace are `OWNER`, `REPOSITORY`, and `PACKAGE_NAME`. The example command, its custom message type, and its smoke assertions are also template material.
+This starter works as-is, but it is still a template. Work through this checklist before treating the repository as a real extension. Parts of this checklist are already done for `pi-splash-stats` (renamed metadata, example removed, smoke assertions adapted); the remaining items (real repository URLs, feature docs) land with the statistics slices.
 
 ## 1. Decide the feature and its boundaries
 
@@ -25,20 +23,18 @@ Do not leave a CI or npm badge pointing at a project that does not exist.
 
 ## 3. Replace the example
 
-The greeting example exists to show a complete vertical slice, not to constrain the feature.
+Done: the greeting example is removed. `src/index.ts` is a silent walking skeleton that registers nothing in any mode. Later slices (SPECIFICATION.md section 10.1) add the pure modules and keep the adapter thin:
 
-- Keep `src/index.ts` as a thin adapter: register the command or tool, call pure logic, choose the output channel.
-- Move decisions and formatting into a pure module. It should not import Pi or perform I/O.
-- Preserve the adapter's mode handling if the feature produces user-facing text: UI modes can notify; headless modes need a custom message or another non-interactive output.
-- Replace `template-greeting` with a stable custom message type. Apply `display` and `triggerTurn` deliberately; the starter sets `display: true` and `triggerTurn: false` so the message is visible without starting a model turn.
-- Remove the `/hello` command and greeting module if the new feature does not need them. Do not keep dead examples.
+- Keep `src/index.ts` as a thin adapter: register commands, tools, or event handlers only when a slice adds them, call pure logic, choose the output channel.
+- Move decisions and formatting into pure modules. They should not import Pi or perform I/O.
+- Keep RPC, print, and JSON modes completely silent; TUI rendering must use `ctx.mode === "tui"`, not `ctx.hasUI` alone.
+- Do not keep dead examples or placeholder commands.
 
 If the feature introduces a tool, configuration, a subprocess, a server, or files, add explicit cancellation and cleanup paths and test them. Do not silently inherit credentials or user configuration.
 
 ## 4. Replace the tests and smoke assertions
 
-- Replace greeting unit tests with tests for the new pure logic, including empty, invalid, and boundary inputs.
-- Replace wiring tests with assertions for the new registration, argument handling, and output-channel branches. Use fakes; do not launch Pi from `test/`.
+- Replace the skeleton wiring tests with assertions for the new registrations, argument handling, and output-channel branches. Use fakes; do not launch Pi from `test/`.
 - Update e2e smoke assertions in `e2e/` for the new command or tool, including checkout RPC, headless JSON, and the packed archive.
 - Keep at least one test that fails if the feature is reverted.
 - Keep tests offline and deterministic. Use temporary directories for any new filesystem work.
@@ -131,7 +127,7 @@ Confirm:
 
 - The package contains only approved release files.
 - No agent docs, tests, e2e files, docs, secrets, environment files, or tarballs are packed.
-- No `OWNER`, `REPOSITORY`, `PACKAGE_NAME`, `/hello`, or `template-greeting` placeholders remain in shipped files.
+- No `OWNER`, `REPOSITORY`, or `PACKAGE_NAME` placeholders remain in shipped files.
 - The e2e paths exercise the real Pi binary and leave no processes or temporary directories behind.
 - For a release, the final `release/package.tgz` is exercised separately with `PACKAGE_ARCHIVE` before those exact bytes are published.
 - The README, changelog, security policy, and release documentation match the code.
@@ -139,4 +135,4 @@ Confirm:
 
 ## 11. If you keep the template public
 
-Keep the example and its checks working so forks can start from a green baseline. Treat changes to the example as changes to the template contract: update `README.md`, `src/AGENTS.md`, `test/AGENTS.md`, `e2e/AGENTS.md`, and the smoke assertions together.
+Keep the extension and its checks working so forks can start from a green baseline. Treat changes to the extension as changes to its contract: update `README.md`, `src/AGENTS.md`, `test/AGENTS.md`, `e2e/AGENTS.md`, and the smoke assertions together.

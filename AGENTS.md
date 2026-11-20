@@ -15,7 +15,7 @@ Source: `package.json` and the repository scripts. No lint, typecheck, or build 
 | Package allowlist check | `npm run check:package` | Asserts `npm pack` contents |
 | Full local check | `npm run check` | `npm test && npm run check:package` |
 | End-to-end (real Pi) | `npm run test:e2e` | Separate; checkout RPC, headless JSON, and packed archive |
-| Single test file | `node --test test/greeting.test.ts` | Replace with the file you are changing |
+| Single test file | `node --test test/extension.test.ts` | Replace with the file you are changing |
 
 - `npm test` and `npm run check:package` need no dependency installation.
 - Node.js 22.18+ is required. CI runs the same checks on Node 22 and 24 on Linux; local runs in this repository use Node 22.
@@ -50,8 +50,8 @@ Source: `package.json` and the repository scripts. No lint, typecheck, or build 
 - The example makes no network requests, reads no configuration, and creates no persistent resources. Adding any of these is a design change, not a casual edit.
 - `src/index.ts` is thin Pi wiring. Pure logic lives elsewhere and is tested directly.
 - The starter imports host types with `import type`. A runtime import from a Pi host peer is legitimate because Pi supplies it; the type-only starter import keeps unit tests fake-friendly. Host packages stay peer dependencies, and adding any npm dependency is a reviewed decision.
-- The example's command contract is `/hello [name]` -> `Hello, NAME!`, with a trimmed argument and `world` as the fallback. A fork replaces this contract; it is not a permanent shape for every extension.
-- When `ctx.hasUI` is true, use `ctx.ui.notify(text, "info")`. Otherwise use `pi.sendMessage({ customType: "template-greeting", content: text, display: true }, { triggerTurn: false })`.
+- The extension is a silent walking skeleton: `src/index.ts` registers no commands, tools, messages, or startup notifications and produces no output in TUI, RPC, print, or JSON modes. Statistics behavior arrives in later slices; do not add user-visible behavior before its slice lands.
+- When later slices render stats in the TUI, use `ctx.mode === "tui"` (not `ctx.hasUI` alone) and keep RPC, print, and JSON modes completely silent per SPECIFICATION.md section 8.4.
 - Tests are offline and deterministic. `npm test` may use temporary filesystem fixtures and isolated local Node child processes for the release CLI; it must not launch Pi, run `npm pack`, or use the network. E2E is the only layer that launches Pi.
 - E2E uses a temporary home, config directory, and working directory; passes an explicit environment allowlist; makes no provider calls; bounds shutdown; cleans up; and writes only a sanitized schema-1 result (default `artifacts/e2e-result.json`, or `E2E_RESULT_PATH`).
 - The packed e2e scenario inspects and extracts the tarball with a system GNU-compatible `tar` (regular files and directories only), then loads the extracted directory through a temporary Pi `settings.json` `packages` entry. It does not run `pi install` or contact a registry; those paths are a known coverage limit. `PACKAGE_ARCHIVE` may point at an exact checked release tarball instead of repacking.
@@ -90,7 +90,7 @@ Source: `package.json` and the repository scripts. No lint, typecheck, or build 
 
 ## Codebase state
 
-- The package is a template example with one command and no runtime dependencies. The example contract can be replaced when forking; do not assume every extension keeps `/hello`.
+- The package is `pi-splash-stats`, a silent walking skeleton with no runtime dependencies. It registers nothing user-visible; statistics behavior is added by later slices. The SPECIFICATION.md acceptance criteria are the contract for those slices.
 - There is no build, lint, or typecheck. CI runs the checks on Node 22 and 24 on Linux and installs the pinned Pi version from `scripts/quality.json` into a temporary prefix outside the checkout; that install needs network, while the checks themselves are offline.
 - TypeScript is stripped, not typechecked. Avoid parameter properties, enums, and namespaces.
 - The checkout is loaded with `-e`; the packed archive is extracted and loaded as a local directory through the Pi manifest in `package.json`. E2E does not exercise the `pi install` command or registry installation.

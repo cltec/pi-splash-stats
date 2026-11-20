@@ -3,7 +3,7 @@ import test from "node:test";
 import { allowedPackagePath, verifyPack } from "../scripts/check-package.mjs";
 
 const manifest = { name: "example-extension", version: "0.1.0", pi: { extensions: ["./src/index.ts"] } };
-const paths = ["package.json", "README.md", "LICENSE", "CHANGELOG.md", "src/index.ts", "src/greeting.ts"];
+const paths = ["package.json", "README.md", "LICENSE", "CHANGELOG.md", "src/index.ts"];
 function pack(overrides = {}) {
   return [{ name: manifest.name, version: manifest.version, filename: "example-extension-0.1.0.tgz",
     files: paths.map(path => ({ path })), ...overrides }];

@@ -1,0 +1,8 @@
+{"method": "POST", "path": "/other/v1/chat/completions", "model": "verify-model", "stream": true, "return_progress": null, "stream_options": {"include_usage": true}, "auth_ok": true, "payload_sha256": "dc025772f10d5f517b1fd292afe54070c97b1a15cc28d98d35b2afedb99e9e1c", "time": 79237.274512416}
+{"phase": "prefill", "time": 79237.890752041}
+{"phase": "generation", "time": 79238.932930541}
+{"phase": "done", "time": 79239.380670416}
+{"method": "POST", "path": "/other/v1/chat/completions", "model": "verify-model", "stream": true, "return_progress": null, "stream_options": {"include_usage": true}, "auth_ok": true, "payload_sha256": "dc025772f10d5f517b1fd292afe54070c97b1a15cc28d98d35b2afedb99e9e1c", "time": 79240.177051208}
+{"phase": "prefill", "time": 79240.790587166}
+{"phase": "generation", "time": 79241.825588541}
+{"phase": "done", "time": 79242.26349175}

@@ -1,0 +1,13 @@
+{
+  "pi": "/Users/cirolucio.tecce/.pi/agent/bin/pi",
+  "pi_version": "1.5.2",
+  "node_version": "v22.23.5",
+  "os": "macOS-26.7.3-arm64-arm-64bit-Mach-O",
+  "package": "/Users/cirolucio.tecce/PersonalProjects/pi-splash-stats/.worktrees/s1",
+  "target": "extension",
+  "source_sha256": {
+    "src/AGENTS.md": "06b15a532824b0ba58489acf4bfdd7186a06604d51ed3574bef397b556128849",
+    "src/index.ts": "7ed5a711f86c9d059df08fecf4781ab8aec52486830b027682297fc08c54084a"
+  },
+  "manifest_sha256": "b4fa6a606e6d3e21436adfb3153c281b657d7856665a2297295c5f469c01505b"
+}
