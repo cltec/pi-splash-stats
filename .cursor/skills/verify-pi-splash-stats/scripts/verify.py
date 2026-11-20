@@ -424,13 +424,19 @@ def run_summary(terminal, server, evidence, scenario, journey):
     are asserted during prefill and generation. The final chat turn re-uses
     the ordinary journey so a usable response after summary is required.
     """
+    def post_count():
+        return sum(1 for e in server.events if e.get("method") == "POST")
+
     spinner = {"compact": "Compacting context", "tree": "Summarizing branch"}.get(scenario, "")
-    baseline = len(server.streams)
     for i in (1, 2, 3):
         seed_turn(terminal, server, evidence, f"{scenario}-turn-{i}", pad=scenario == "compact")
     if scenario == "compact":
+        # Snapshot stream and POST counts immediately before the summary trigger so
+        # the pair captured below is the summary request itself, not a seed turn.
+        pre_summary = (len(server.streams), post_count())
         terminal.send("/compact")
-        terminal.wait(lambda: len(server.streams) > baseline, "actual /compact summary request")
+        terminal.wait(lambda: len(server.streams) > pre_summary[0] and post_count() > pre_summary[1],
+                      "actual /compact summary request")
     else:
         offset = len(terminal.output)
         terminal.send("/tree")
@@ -445,16 +451,22 @@ def run_summary(terminal, server, evidence, scenario, journey):
         terminal.wait(lambda: b"Summarize branch?" in terminal.output, "branch summary menu", timeout=15)
         if scenario == "tree":
             terminal.key(b"\x1b[B", "menu-to-summarize")
+            # Snapshot immediately before the menu confirmation: only the confirmed
+            # "Summarize" choice may produce a new stream/POST pair.
+            pre_summary = (len(server.streams), post_count())
             terminal.key(b"\r", "menu-choose-summarize")
-            terminal.wait(lambda: len(server.streams) > baseline, "actual branch summary request")
+            terminal.wait(lambda: len(server.streams) > pre_summary[0] and post_count() > pre_summary[1],
+                          "actual branch summary request")
         else:
             nav_offset = len(terminal.output)
             pre_nav = len(server.streams)
             terminal.key(b"\r", "menu-no-summary")
     if scenario in ("compact", "tree"):
+        # The fixture appends each stream state before recording its POST, so the
+        # last stream and last POST are the summary request captured above.
         stream = server.streams[-1]
         posts = [e for e in server.events if e.get("method") == "POST"]
-        require(len(posts) == len(server.streams), "Duplicate summary inference request")
+        require(len(posts) == pre_summary[1] + 1, "Duplicate summary inference request")
         post = posts[-1]
         require(post["auth_ok"] and post["model"] == MODEL and post["stream"] is True,
                 "Wrong summary inference auth/model/stream")
@@ -817,6 +829,10 @@ def main():
                 server.server_close()
                 worker.join(timeout=3)
             if scratch:
+                # Side-effect evidence must exist for failed journeys too; the
+                # success path has already written it.
+                if not (evidence / "files-after.json").exists():
+                    dump(evidence / "files-after.json", observe_files(scratch))
                 shutil.rmtree(scratch)
             report.update(status=status, scratch_removed=scratch is None or not scratch.exists(),
                           fixture_closed=server is None or server.fileno() == -1,

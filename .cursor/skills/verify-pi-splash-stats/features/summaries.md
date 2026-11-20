@@ -21,9 +21,11 @@ navigate-without-summary.
   session file is kept as side-effect evidence in `files-after.json`.
 - Recorded outcomes on the current extension (S2–S4 chat stats only; no summary support):
   - `run compact` → **FAIL**: "Expected summary prefill stats". The real summary HTTP
-    request fires (`summary-request.json`), the Pi `Compacting context...` spinner is
-    captured in `summary-prefill.screen.txt`, and the run fails at the first
-    above-editor-stats assertion. Cleanup is clean.
+    request fires and is captured as that request itself in `summary-request.json`
+    (`return_progress: null` — see the enrichment gotcha below), the Pi
+    `Compacting context...` spinner is captured in `summary-prefill.screen.txt`, and the
+    run fails at the first above-editor-stats assertion. Cleanup is clean and
+    `files-after.json` is written even on this failing run.
   - `run tree` → **FAIL**: "Expected summary prefill stats". Type-to-search lands the
     cursor on the target entry (`(1/1)` in `terminal.ansi`), the "Summarize" choice fires
     the real branch-summary request, and the `Summarizing branch...` spinner is captured.
@@ -82,15 +84,24 @@ Each run records, under `.verification-evidence/<run-id>/`:
   chosen with Deliberate Enter/Down+Enter; a pasted slash command's `\r` can silently
   confirm the menu and consume the command.
 - **Summary streams bypass the provider hooks** (see `docs/adr/0002-transport-coverage.md`
-  in the repository): `before_provider_request`/`provider_stream_event` do not fire for
-  compaction or branch summaries in Pi 1.5.2, only `before_provider_headers` does. The
-  extension needs a scoped fetch observer for summary streams; until it lands,
-  `compact`/`tree` fail at the stats assertions even though the request, spinner, and
-  gating all work.
-- **Enrichment already reaches summary requests.** The current extension adds
-  `return_progress`/`include_usage` via the header hook, which *does* fire for summaries;
-  `summary-request.json` shows this. That is request enrichment only — it does not make
-  stats render.
+  in the repository): `before_provider_request`/`after_provider_response`/
+  `provider_stream_event` do not fire for compaction or branch summaries in Pi 1.5.2, only
+  `before_provider_headers` does. The extension has no summary hook today (no header hook,
+  no stream hook), so it neither enriches summary requests nor observes summary samples;
+  S5 needs a scoped fetch observer for summary streams. Until it lands, `compact`/`tree`
+  fail at the stats assertions even though the request, spinner, and gating all work.
+- **The summary request body is not enriched by the extension.** The captured summary
+  POST has `return_progress: null` — `before_provider_request` does not fire for
+  summaries (ADR 0002), so the extension cannot add it. The
+  `stream_options.include_usage` in the body is added natively by pi-ai's
+  openai-completions transport, not by the extension. The extension has no header hook.
+- **S5 consequence — summary progress sourcing is undecided.** The loopback fixture emits
+  `prompt_progress` samples only when the payload has `return_progress: true`. Summary
+  payloads do not, so the fixture never emits summary progress and the `compact`/`tree`
+  prefill-stats assertions cannot pass until S5 decides how summary progress is sourced —
+  observer-side enrichment of the owned summary requests versus a fixture behavior change.
+  That is an S5 decision to be documented against SPECIFICATION.md §6/§10.2; the harness
+  records the red assertion as-is and does not paper over it.
 - **Automatic compaction, recovery compaction, and explicit alternate-summary-model
   entries remain BLOCKED**: the fixture cannot drive an automatic overflow/recovery
   compaction deterministically, and the alternate-model entry requires a second provider
