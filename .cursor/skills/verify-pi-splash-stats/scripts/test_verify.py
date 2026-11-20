@@ -28,6 +28,24 @@ class HarnessTests(unittest.TestCase):
     def test_ansi_removal(self):
         self.assertEqual(verify.ANSI.sub("", "\x1b[32m50%\x1b[0m"), "50%")
 
+    def test_summary_settings_keep_sessions_compactible(self):
+        self.assertEqual(verify.build_settings("compact")["compaction"],
+                         {"enabled": False, "keepRecentTokens": 200})
+        self.assertEqual(verify.build_settings("chat")["compaction"], {"enabled": False})
+        self.assertEqual(verify.build_settings("tree")["compaction"], {"enabled": False})
+
+    def test_tree_cursor_detection_uses_displayed_text(self):
+        screen = (
+            "Session Tree\n"
+            " • [system]\n"
+            "› • user: Verify tree-turn-1.\n"
+            " (1/2)\n"
+            "↑↓ navigate\n"
+        )
+        self.assertTrue(verify.tree_cursor_on(screen, "Verify tree-turn-1."))
+        self.assertFalse(verify.tree_cursor_on(screen, "Verify tree-turn-2."))
+        self.assertFalse(verify.tree_cursor_on("no tree here", "Verify tree-turn-1."))
+
     def invoke(self, *args):
         command = [str(HERE / "verify.py"), *args]
         child = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
