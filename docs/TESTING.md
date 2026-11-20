@@ -9,7 +9,7 @@ The project uses layered checks: fast offline tests for the adapter and tooling 
 | Node.js | 22.18 or newer. CI runs Node 22 and 24 on Linux with the same commands; local verification here uses Node 22. |
 | Platform | Linux. Other operating systems are not currently verified. |
 | Pi | 1.5.2 baseline for e2e, pinned in `scripts/quality.json`. |
-| Dependencies | None for the starter. Do not run `npm install` for the starter. E2E also needs a Pi binary and a system GNU-compatible `tar`. |
+| Dependencies | None. Do not run `npm install`. E2E also needs a Pi binary and a system `tar` (the packed listing uses portable `tar -tf`, so GNU- and BSD-tar both work). |
 | Network | `npm test` and `npm run check` are offline. E2E execution is offline. CI's initial pinned Pi install requires network. |
 
 Node strips TypeScript types for the tests; it does not typecheck. There is no lint, typecheck, or build step.
@@ -28,16 +28,33 @@ Node strips TypeScript types for the tests; it does not typecheck. There is no l
 
 ## Adapter wiring
 
-There is no pure-logic layer in the walking skeleton yet; later slices add pure modules (identity, discovery, progress, formatting) tested directly without Pi.
+The behavior lives in pure modules, each tested directly without Pi:
 
-The same `npm test` run contains wiring tests. They import the extension entry point with a type-only host dependency and inject a deliberately partial fake `ExtensionAPI` that records `registerCommand`, `registerTool`, `on`, and `sendMessage` calls.
+| Test file | Module under test |
+| --- | --- |
+| `test/identity.test.ts` | `src/identity.ts` — endpoint normalization, discovery URL, candidate test, identity validation. |
+| `test/discovery.test.ts` | `src/discovery.ts` — bounded/deduplicated/cached discovery, deadline, auth-context key. |
+| `test/transport.test.ts` | `src/transport.ts` — eligibility, enrichment, stream attribution. |
+| `test/progress.test.ts` | `src/progress.ts` — prefill/generation math and validation bounds. |
+| `test/format.test.ts` | `src/format.ts` — compact-line rendering and width fallbacks. |
+| `test/ui.test.ts` | `src/ui.ts` — ownership, coalescing, throw-safe display. |
+| `test/fetch-observer.test.ts` | `src/fetch-observer.ts` — SSE parsing and scoped observer bounds. |
 
-Assert:
+The same `npm test` run contains wiring tests (`test/extension.test.ts`). They import the extension
+entry point with a type-only host dependency and inject a deliberately partial fake `ExtensionAPI`
+that records the lifecycle hooks (`session_start`, `model_select`, `session_shutdown`), the provider
+request/stream hooks, and the TUI working-message/widget registration. They drive fake provider
+requests and stream events through the real adapter and assert:
 
-- No commands, tools, event listeners, messages, or startup notifications are registered or emitted.
-- Repeated registration (simulating a reload) stays silent and accumulates nothing.
+- Rendering is gated on `ctx.mode === "tui"`; RPC, print, and JSON fakes produce no stats output.
+- Ownership is enforced: late, out-of-order, or stale chunks are rejected and concurrent streams do
+  not mix counts; `armedRequest` prevents a stale boundary from clearing a newer request.
+- Lifecycle: `session_start` creates a fresh discovery cache and bumps `runtimeGeneration`;
+  `model_select` bumps `selectionGeneration`; `session_shutdown` disposes the cache and goes inert.
+- Failure paths: a throwing UI API disables the affected display without throwing; an abrupt stream
+  clears the display without an unhandled rejection; a failed discovery leaves the request unenriched.
 
-Wiring tests must not launch Pi. That is the e2e layer's job.
+Wiring tests must not launch Pi. That is the e2e and verification-harness layers' job.
 
 ## Tooling helpers
 
@@ -49,7 +66,7 @@ The same `npm test` run contains tests for helpers used by packaging, e2e, and r
 
 ## Package contents
 
-`npm run check:package` inspects what `npm pack` would include and compares it with an explicit allowlist. The starter allowlist is:
+`npm run check:package` inspects what `npm pack` would include and compares it with an explicit allowlist. The allowlist is:
 
 - `package.json`, `README.md`, `LICENSE`, and `CHANGELOG.md`.
 - Non-hidden `src/**/*.ts` files, excluding `*.test.ts`, `*.spec.ts`, and `AGENTS.md`/`CLAUDE.md`/`GEMINI.md`.
@@ -113,15 +130,37 @@ The runner writes a sanitized schema-1 result to `artifacts/e2e-result.json`, or
 
 `scripts/summarize-e2e.mjs` renders only known fields: outcome, Node and Pi versions, overall cleanup, and each check's name, status, failure category, and cleanup. It reads the same environment variable and default path. It does not render raw messages, protocol data, environment values, home paths, prompts, or session content. Artifacts are not committed.
 
+## Real-Pi verification harness
+
+Beyond the offline `node:test` suite and the e2e smoke, the repository ships a real-Pi verification
+harness at [`.cursor/skills/verify-pi-splash-stats`](../.cursor/skills/verify-pi-splash-stats/SKILL.md)
+(`scripts/verify.py`, Python 3.10+ stdlib only). It drives a **real Pi PTY** (120×40, regular mode)
+and the non-TUI modes against a local loopback protocol fixture, and it is the layer that proves the
+user-visible behavior end to end: the prefill bar, the generation count, cache-awareness, mode
+silence, cancellation, reload, model switching, compaction/branch summaries, and the **packed
+package** (it runs `npm pack`, extracts the tarball, and loads the artifact through the Pi manifest).
+
+It is a how-to for an agent, not a CI job: run `"$V" doctor` first, then `"$V" run <scenario>` for
+the scenario you touched. It never installs, fetches, or calls a real provider; it writes only
+sanitized evidence under `.verification-evidence/`. Its self-tests (`scripts/test_verify.py`) are
+infrastructure-only and never release evidence. A green harness run is bounded integration evidence
+against a local fixture; it does not qualify real Splash, the launcher, auto/recovery compaction,
+remote/IPv6/auth failure, exact transient counts, narrow layout, or other-extension coexistence. See
+the skill's [qualification status](../.cursor/skills/verify-pi-splash-stats/references/qualification-status.md).
+
+The harness is separate from `npm test` and `npm run test:e2e`: those are the fast, offline, CI
+checks; the harness is the manual, real-Pi, PTY-level proof.
+
 ## What is not covered
 
-- Provider transports, authentication, model output, and streaming.
-- TUI rendering and terminal behavior.
+- Provider transports, authentication, model output, and streaming, against a real backend.
+- Real Splash, the launcher, auto/recovery compaction, remote/IPv6/auth-failure paths, exact final
+  transient counts/rates, narrow terminal layout, and other-extension coexistence (recorded as
+  unverified in the skill's qualification status).
 - Operating systems other than Linux.
 - TypeScript type errors, since the project does not typecheck.
-- Performance or concurrency. The skeleton has no such behavior; later slices must add those tests.
 - The `pi install` command, npm registry resolution/installation, and the published-package install path.
-- Tar formats or archive entries beyond GNU-compatible `tar` with regular files and directories.
+- Tarball formats other than a regular-files-and-directories tar, and archive entries beyond that.
 
 If a fork adds resources or network access, add tests for cancellation, cleanup, timeout, and failure before claiming support.
 

@@ -1,6 +1,6 @@
 # Releasing a Pi extension
 
-This template releases from an explicit, manually pushed stable tag. It does **not** create tags on merge, publish on merge, or auto-merge release pull requests. Publishing is disabled by default with both:
+This project releases from an explicit, manually pushed stable tag. It does **not** create tags on merge, publish on merge, or auto-merge release pull requests. Publishing is disabled by default with both:
 
 - `"private": true` in `package.json`.
 - The `ENABLE_NPM_PUBLISH` repository variable, which must be the exact string `true`.
@@ -13,13 +13,13 @@ The repository in `package.json` is also a guard. Until `OWNER/REPOSITORY` is re
 
 ### 1. Make the package publishable
 
-Complete the template setup first. At minimum:
+Complete the package metadata first. At minimum:
 
 - Replace `OWNER` and `REPOSITORY` in `package.json`, documentation, and workflow references.
 - Set the real package `name`, `version`, `description`, and repository metadata.
 - Keep `repository` as the canonical GitHub URL for the repository that runs this workflow.
 - Change `"private": true` to `"private": false` only when you are ready to publish.
-- Keep the Pi baseline in `scripts/quality.json`; this template pins `1.5.2`.
+- Keep the Pi baseline in `scripts/quality.json`; this project pins `1.5.2`.
 - Add a changelog heading for the exact version, for example `## [0.2.0]`. The release script rejects a missing or mismatched heading.
 
 The package allowlist is checked by `npm run check`. Do not widen it to make development files publishable.
@@ -148,8 +148,8 @@ The publish job has `id-token: write`; the GitHub Release job has `contents: wri
 Check all of these:
 
 - **Actions → Release** has successful preflight, Node 22/24 checks, Pi smoke, package, publish, and GitHub Release jobs.
-- npm lists the expected version, for example `npm view pi-extension-template@0.2.0 version`.
-- The npm archive integrity matches the checked release record, for example `npm view pi-extension-template@0.2.0 dist.integrity`.
+- npm lists the expected version, for example `npm view pi-splash-stats@0.2.0 version`.
+- The npm archive integrity matches the checked release record, for example `npm view pi-splash-stats@0.2.0 dist.integrity`.
 - GitHub Releases has the matching tag and notes.
 
 ## Recover from a failure
@@ -174,7 +174,7 @@ Check all of these:
 
 ## Optional future automatic tagging
 
-The starter deliberately has no auto-tag workflow. If a fork later adopts automatic tagging, keep these constraints:
+This project deliberately has no auto-tag workflow. If a fork later adopts automatic tagging, keep these constraints:
 
 - Only tag a reviewed, merged version-and-changelog change, anchored to the exact pushed commit. Never tag a newer moving branch tip.
 - Re-run the same tag identity, Node 22/24, package, and pinned-Pi smoke gates against that exact commit before creating the tag.
@@ -182,7 +182,7 @@ The starter deliberately has no auto-tag workflow. If a fork later adopts automa
 - Explicitly dispatch the `Release` workflow at the created tag; do not assume an automation-created tag event will publish.
 - Keep automatic merging out of the release path. A version bump should still be reviewed, and publication should remain a deliberate maintainer action.
 
-No automatic merge publication or automatic tag creation is included in this template.
+No automatic merge publication or automatic tag creation is included in this project.
 
 ## References
 
