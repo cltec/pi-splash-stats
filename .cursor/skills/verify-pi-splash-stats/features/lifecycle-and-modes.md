@@ -36,28 +36,13 @@ Preconditions: skill baseline; actual packaged source for delivery journey; seed
   Work/session files must not be created by these no-tools/no-session drives. Provider configuration
   must remain unchanged. Negative-path config hashes must match the baseline.
   This is not proof of every privacy property: review source/wiring for prompt/chunk retention.
-- **Packed manifest.** After the approved implementation setup, run:
-  ```sh
-  bash <<'SH'
-  set -euo pipefail
-  V=.cursor/skills/verify-pi-splash-stats/scripts/verify.py
-  PACK_RUN=$(mktemp -d)
-  PACK_EVIDENCE="$(pwd)/.verification-evidence/package-$(date +%Y%m%dT%H%M%S)-$$"
-  mkdir -p "$PACK_RUN/npm-cache" "$PACK_EVIDENCE"
-  trap 'code=$?; printf "%s\n" "$code" > "$PACK_EVIDENCE/exit-code.txt"; rm -rf "$PACK_RUN"; exit "$code"' EXIT
-  npm --offline --cache "$PACK_RUN/npm-cache" --ignore-scripts pack --json --pack-destination "$PACK_RUN" > "$PACK_EVIDENCE/pack.json" 2> "$PACK_EVIDENCE/npm-stderr.txt"
-  ARCHIVE=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))[0]["filename"])' "$PACK_EVIDENCE/pack.json")
-  tar -tzf "$PACK_RUN/$ARCHIVE" > "$PACK_EVIDENCE/archive-files.txt"
-  tar -xzf "$PACK_RUN/$ARCHIVE" -C "$PACK_RUN"
-  PACKED_PACKAGE="$PACK_RUN/package"
-  "$V" run chat --package "$PACKED_PACKAGE" | tee "$PACK_EVIDENCE/chat.txt"
-  "$V" run non-splash --package "$PACKED_PACKAGE" | tee "$PACK_EVIDENCE/non-splash.txt"
-  SH
-  ```
-  Preserve pack output/listing and exits in the package evidence directory, inspect the required
-  runtime allowlist and unchanged Apache license. The EXIT trap removes only `"$PACK_RUN"` on
-  success or failure. This recipe disables npm lifecycle scripts explicitly; inspect observed files.
-  Never use a checkout source path to excuse missing packed modules.
+- **Packed manifest.** Run `"$V" run packed`. It runs `npm pack`, extracts the tarball, and loads
+  the artifact through the Pi manifest (a settings `packages` entry, not `-e`), then drives the same
+  `chat` assertions—so it covers the exact bytes a user would install. Preserve the run's evidence
+  (prefill/generation screens, `result.json`). For a deeper content inspection, also run
+  `npm pack --json`, list with `tar -tzf`, and confirm the 12-file allowlist plus the unchanged
+  Apache `LICENSE`. Never use a checkout source path to excuse a missing packed module.
+  The journey does not run `pi install`, contact a registry, or authorize publication/tagging.
 - **Missing lifecycle journeys.** Disconnect/error, mid-flight switching/probes, `/new`, retained
   old fetch wrappers, and another extension's widget coexistence are currently BLOCKED in the PTY
   seed. Add external faults/user actions plus wiring tests, not synthetic extension callbacks.
@@ -65,8 +50,9 @@ Preconditions: skill baseline; actual packaged source for delivery journey; seed
 ## Gotchas
 
 - Forced process termination is evidence of a shutdown problem, not a clean lifecycle pass.
-- Package recipe is initially BLOCKED: no package/lockfile/license/runtime source exists.
-  It has not been executed against the future archive. No publication/tag/dependency authorization implied.
+- The `packed` journey exercises the npm artifact end to end (pack, extract, manifest load,
+  chat assertions). It does not authorize publication, tagging, or adding dependencies, and it does
+  not run `pi install` or contact a registry.
 - Run npm package/unit/E2E checks from the specification separately and record their exits;
   PTY smoke cannot replace them. No extra build/lint/typecheck scripts are specified.
 - Local fake-server CI is an explicit expansion of the template's no-provider-call boundary.

@@ -1,8 +1,9 @@
 # Pi Splash Stats verification map
 
-This is the maintained user-journey source for `SPECIFICATION.md`, not a list of implemented features.
-Read [the skill](../SKILL.md) first. No extension exists in the initial checkout: every product
-journey is initially **BLOCKED**. A harness-only pass does not change that status.
+This is the maintained user-journey source for `SPECIFICATION.md`. Read [the skill](../SKILL.md)
+first. The extension is implemented; the journeys below are driven against a real Pi PTY and a
+local protocol fixture. A harness-only pass never counts as product proof, and a missing
+precondition is a **BLOCKED** journey, not a weaker test that passes.
 
 ## Baseline preconditions
 
@@ -39,7 +40,7 @@ journey, not a weaker test that passes. Do not claim an entire AC from one parti
 | [Cache-aware prefill](prefill.md) | `chat`, `cached` | AC-03/04/10 |
 | [Generation feedback](generation.md) | `chat`, `cached` | AC-05/06 |
 | [Compaction and branch summaries](summaries.md) | `compact`, `tree`, `tree-negative` | AC-05/11 |
-| [Cancellation, modes and delivery](lifecycle-and-modes.md) | aborts, `reload`, print/JSON/RPC | AC-01/11/12/13/14 |
+| [Cancellation, modes and delivery](lifecycle-and-modes.md) | aborts, `reload`, print/JSON/RPC, `packed` | AC-01/11/12/13/14 |
 
 The listed ACs are required scope, not passing claims. Real Splash and offline/transport/package gates
 remain required even when every available PTY recipe passes.
