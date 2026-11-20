@@ -96,8 +96,13 @@ test("registers no commands, tools, or messages; only the expected event listene
     "before_provider_request",
     "model_select",
     "provider_stream_event",
+    "session_before_compact",
+    "session_before_tree",
+    "session_compact",
+    "session_compact_failed",
     "session_shutdown",
     "session_start",
+    "session_tree",
     "turn_end",
   ]);
 });

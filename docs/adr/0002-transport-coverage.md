@@ -1,6 +1,6 @@
 # ADR 0002: Transport coverage for summary requests (provider hooks vs scoped fetch observer)
 
-- Status: Proposed (S5a spike; evidence-only, no implementation changes)
+- Status: Accepted (S5; implemented via `src/fetch-observer.ts`, phase-gated in `src/index.ts`)
 
 ## Context
 
@@ -40,15 +40,30 @@ Observed hook fire matrix:
 
 The live result matches the static trace exactly.
 
-## Decision (recommendation)
+## Decision (final)
 
 **Hooks alone are insufficient. Use provider hooks for chat plus a scoped `fetch` observer for summary streams.**
 
 - `before_provider_request` / `provider_stream_event` / `after_provider_response` cover ordinary agent chat only. Compaction and branch-summary requests are internal model calls that bypass the hook options; this is demonstrated for Pi 1.5.2, not inferred.
 - The fetch observer is the only mechanism that sees the summary requests, since they flow through the same global `fetch`-based pi-ai transport.
-- **Foreground attribution is satisfiable** without hooks on the summary path: the observer does not match on endpoint alone; it attributes a request to the foreground operation active at send time (compaction in flight, or tree-navigation/branch-summary in flight, as surfaced by Pi session lifecycle events such as `compaction_start`/settlement and the branch-summary status flow). Summary requests are distinguishable at the transport level (`cacheRetention: "none"`, one-shot routing `sessionId`, single summarization user message), which supports — but per §10.2 must not replace — foreground-operation matching.
+- **Foreground attribution is satisfiable** without hooks on the summary path: the observer does not match on endpoint alone; it attributes a request to the foreground operation active at send time. Pi 1.5.2 surfaces that operation through session lifecycle events (see Resolution). Summary requests are distinguishable at the transport level (`cacheRetention: "none"`, one-shot routing `sessionId`, single summarization user message), which supports — but per §10.2 must not replace — foreground-operation matching.
 - **Reload semantics are satisfiable**: `/reload` and session replacement run `session_shutdown` and load a replacement extension runtime, so the observer's disposal path (mark wrappers inert, restore global fetch only if still this extension's, keep delegation callable) runs exactly as the §10.2 requirements list demands; at most one active observer per runtime.
 - **Deduplication**: chat requests will hit both the parsed-stream hooks and the fetch observer; the observer must yield to the hooks for foreground chat (or the extension must count each owned request exactly once) per the §10.2 double-counting requirement.
+
+## Resolution (S5 implementation)
+
+The S5 slice implements the decision above. Concretely:
+
+- **Chat (hooks are the source of truth).** `before_provider_request` + `provider_stream_event` own all ordinary chat statistics, exactly as in the S4 baseline.
+- **Summary (scoped fetch observer).** A single `installFetchObserver` (in `src/fetch-observer.ts`) wraps `globalThis.fetch` once per runtime (installed on `session_start` in TUI mode). For an eligible summary request it enriches the body (adds `stream_options.include_usage`; never injects `return_progress` — summary bodies must not gain provider-specific prefill fields, SPEC 6.3/12.2) and observes the SSE response in a single pass, forwarding bytes, status, headers, streaming, backpressure, errors, and cancellation unchanged.
+- **Foreground attribution by phase.** `src/index.ts` tracks a `phase` (`"chat" | "compaction" | "branch"`) driven by Pi lifecycle events:
+  - `session_before_compact` → `compaction`;
+  - `session_before_tree` with `preparation.userWantsSummary` → `branch` (tree navigation **without** a summary request stays `chat` and shows nothing);
+  - `session_compact`, `session_compact_failed`, `session_tree`, and `before_provider_request` → back to `chat` (settlement and chat-start), finalizing/clearing any summary UI.
+  The observer's `classify` returns an attribution only when `phase` is `compaction` or `branch`, the request is a POST to `/chat/completions`, the body has a model string, and the request's **actual** backend (endpoint + model) is a verified owned openai-completions candidate via the identity/discovery modules — chat's eligibility proof is not reused. Because chat runs with `phase = "chat"`, the observer passes every chat request through untouched: **no double-counting**.
+- **Reload/disposal.** `session_shutdown` disposes the observer (restore the global fetch only if it still points at this extension's wrapper; the wrapper stays inert and callable afterward), disposes the UI and discovery, and marks the state inert. `session_start` (TUI) re-arms with fresh state and a new observer — at most one active observer per runtime, no stacked wrappers across reloads.
+- **UI (SPEC 8.1).** Chat prefill stays in the working message; summary prefill renders in an above-editor widget (key `pi-splash-stats`) because Pi's own compaction/branch status occupies the working message. Generation lines render in the widget for both chat and summary. The extension never touches Pi's own spinner text.
+- **Evidence.** The S5h verification harness journeys `compact` and `tree` (plus `tree-negative`) and the chat regression journey exercise this end to end against a real, isolated Pi 1.5.2 against a loopback fake backend.
 
 Applicable §10.2 observer requirements (all of them, since the observer is required):
 
