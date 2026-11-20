@@ -27,7 +27,12 @@ ROOT = Path(__file__).resolve().parents[4]
 ANSI = re.compile(r"\x1b\][^\x07]*(?:\x07|\x1b\\)|\x1b\[[0-?]*[ -/]*[@-~]")
 MODEL = "verify-model"
 SCENARIOS = ("chat", "cached", "non-splash", "switch", "abort-prefill",
-             "abort-generation", "reload", "print", "json", "rpc")
+             "abort-generation", "reload", "print", "json", "rpc", "compact", "tree",
+             "tree-negative")
+# Summary journeys need real (persisted, in-scratch) sessions: /compact summarizes a
+# persisted conversation and /tree navigates one. They keep that session file as
+# side-effect evidence instead of treating it as an unexpected write.
+SUMMARY_SCENARIOS = ("compact", "tree", "tree-negative")
 
 
 class Blocked(Exception):
@@ -292,6 +297,13 @@ class Terminal:
         self.pump(.1)
         os.write(self.master, b"\r")
 
+    def key(self, seq, name):
+        """Send raw key bytes (selector arrows/Enter) with bounded pumping."""
+        with (self.evidence / "actions.jsonl").open("a") as f:
+            f.write(json.dumps({"time": time.monotonic(), "key": name}) + "\n")
+        os.write(self.master, seq)
+        self.pump(.3)
+
     def snapshot(self, name):
         log = self.scratch / "agent/pi-debug.log"
         if log.exists():
@@ -337,6 +349,30 @@ def no_stats(screen):
             "Stats leaked into idle/ineligible UI")
 
 
+def build_settings(scenario):
+    """Isolated Pi settings; the compact scenario keeps seeded sessions compactible."""
+    compaction = {"enabled": False}
+    if scenario == "compact":
+        # The default 20k keepRecentTokens makes a small seeded session report
+        # "Nothing to compact (session too small)" without any provider request.
+        compaction["keepRecentTokens"] = 200
+    return {"quietStartup": False, "compaction": compaction, "packages": []}
+
+
+def tree_cursor_on(screen, target):
+    """True when the /tree Session Tree cursor is on the row displaying `target`.
+
+    Pi 1.5.2 renders the selected tree row with a `›` prefix, e.g.
+    `› • user: Verify tree-turn-1.`. Selection is driven by the displayed
+    prompt text via the tree's type-to-search filter, never by coordinates.
+    """
+    for line in screen.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("›") and target in stripped:
+            return True
+    return False
+
+
 def observe_files(scratch):
     configs = {}
     for name in ("models.json", "settings.json", "auth.json"):
@@ -344,6 +380,132 @@ def observe_files(scratch):
         configs[name] = hashlib.sha256(path.read_bytes()).hexdigest() if path.exists() else None
     return {"config_hashes": configs,
             "files": sorted(str(p.relative_to(scratch)) for p in scratch.rglob("*") if p.is_file())}
+
+
+def seed_turn(terminal, server, evidence, label, pad=False):
+    """One real user turn through the owned PTY; no product-stats assertions.
+
+    These turns are conversation scaffolding for the summary journeys, not the
+    chat journey under test. They settle on the actual assistant response so
+    the following /compact or /tree starts from an idle, complete session.
+    """
+    before = len(server.streams)
+    text = f"Verify {label}."
+    if pad:
+        text += " " + " ".join(["context"] * 180)
+    terminal.send(text)
+    terminal.wait(lambda: len(server.streams) > before, f"{label} completion request")
+    stream = server.streams[before]
+    stream["release_prefill"].set()
+    stream["release_generation"].set()
+    terminal.wait(stream["done"].is_set, f"{label} fixture completion")
+    deadline = time.monotonic() + 8
+    while True:
+        end = time.monotonic() + .25
+        terminal.wait(lambda: time.monotonic() >= end, "seed settle render")
+        terminal.snapshot(label + "-idle")
+        debug = (evidence / f"{label}-idle.debug.txt").read_text()
+        messages = [json.loads(line) for line in debug.split("=== Agent messages (JSONL) ===\n")[1].splitlines() if line]
+        if messages and messages[-1].get("role") == "assistant" and messages[-1].get("stopReason") == "stop":
+            break
+        require(time.monotonic() < deadline, "Seed turn did not settle to an assistant response")
+    posts = [e for e in server.events if e.get("method") == "POST"]
+    require(len(posts) == before + 1, "Duplicate inference request during seed")
+    post = posts[-1]
+    require(post["auth_ok"] and post["model"] == MODEL and post["stream"] is True,
+            "Wrong seed inference auth/model/stream")
+
+
+def run_summary(terminal, server, evidence, scenario, journey):
+    """Drive the /compact and /tree branch-summary journeys.
+
+    Seed turns scaffold the conversation. The summary stream is gated exactly
+    like chat: the Pi spinner must stay visible while the above-editor stats
+    are asserted during prefill and generation. The final chat turn re-uses
+    the ordinary journey so a usable response after summary is required.
+    """
+    spinner = {"compact": "Compacting context", "tree": "Summarizing branch"}.get(scenario, "")
+    baseline = len(server.streams)
+    for i in (1, 2, 3):
+        seed_turn(terminal, server, evidence, f"{scenario}-turn-{i}", pad=scenario == "compact")
+    if scenario == "compact":
+        terminal.send("/compact")
+        terminal.wait(lambda: len(server.streams) > baseline, "actual /compact summary request")
+    else:
+        offset = len(terminal.output)
+        terminal.send("/tree")
+        terminal.wait(lambda: b"Session Tree" in terminal.output, "session tree opens", timeout=15)
+        target = f"Verify {scenario}-turn-1."
+        # Type-to-search filters the tree to the displayed prompt text; the
+        # selection follows the (unique) match, so no coordinates are involved.
+        terminal.key(target.encode(), "tree-search-target")
+        terminal.wait(lambda: tree_cursor_on(ANSI.sub("", terminal.output[offset:].decode("utf-8", "replace")), target),
+                      "tree cursor on target entry", timeout=15)
+        terminal.key(b"\r", "tree-select-entry")
+        terminal.wait(lambda: b"Summarize branch?" in terminal.output, "branch summary menu", timeout=15)
+        if scenario == "tree":
+            terminal.key(b"\x1b[B", "menu-to-summarize")
+            terminal.key(b"\r", "menu-choose-summarize")
+            terminal.wait(lambda: len(server.streams) > baseline, "actual branch summary request")
+        else:
+            nav_offset = len(terminal.output)
+            pre_nav = len(server.streams)
+            terminal.key(b"\r", "menu-no-summary")
+    if scenario in ("compact", "tree"):
+        stream = server.streams[-1]
+        posts = [e for e in server.events if e.get("method") == "POST"]
+        require(len(posts) == len(server.streams), "Duplicate summary inference request")
+        post = posts[-1]
+        require(post["auth_ok"] and post["model"] == MODEL and post["stream"] is True,
+                "Wrong summary inference auth/model/stream")
+        require(post["path"] == "/splash/v1/chat/completions", "Summary hit an unexpected endpoint")
+        dump(evidence / "summary-request.json", post)
+        terminal.wait(stream["prefill"].is_set, "summary prefill samples")
+        end = time.monotonic() + .35
+        terminal.wait(lambda: time.monotonic() >= end, "summary prefill render")
+        screen = terminal.snapshot("summary-prefill")
+        require(spinner in screen, "Pi summary spinner missing from prefill snapshot")
+        require("Prefilling" in screen and "50%" in screen, "Expected summary prefill stats")
+        require("20.0 tok/s" in screen, "Expected summary prefill throughput")
+        stream["release_prefill"].set()
+        terminal.wait(stream["generation"].is_set, "summary generated output")
+        end = time.monotonic() + .35
+        terminal.wait(lambda: time.monotonic() >= end, "summary generation render")
+        screen = terminal.snapshot("summary-generation")
+        require(spinner in screen, "Pi summary spinner missing from generation snapshot")
+        require("Generating" in screen and "≈" in screen, "Expected summary generation stats")
+        require("Prefilling" not in screen, "Prefill remained during summary generation")
+        stream["release_generation"].set()
+        terminal.wait(stream["done"].is_set, "summary completion")
+        nav_offset = len(terminal.output)
+        # Post-summary UI work (compaction entry / branch navigation) is asynchronous.
+        deadline = time.monotonic() + 8
+        while True:
+            end = time.monotonic() + .25
+            terminal.wait(lambda: time.monotonic() >= end, "summary settle render")
+            screen = terminal.snapshot("summary-idle")
+            if spinner not in screen and "Prefilling" not in screen and "Generating" not in screen:
+                break
+            require(time.monotonic() < deadline, "Stale summary spinner/stats after completion")
+        if scenario == "tree":
+            require("Branch summary" in screen, "Branch summary entry not rendered after navigation")
+            # Navigation restores the target prompt into the editor; wait for that
+            # render, then clear it before sending further commands.
+            terminal.wait(lambda: target.encode() in terminal.output[nav_offset:],
+                          "editor restored after navigation", timeout=15)
+        terminal.key(b"\x15", "clear-restored-editor-text")
+    else:
+        # "No summary": navigation must be instant and must not infer. Navigation
+        # restores the target prompt into the editor; wait for that render, then
+        # clear it before sending /debug.
+        terminal.wait(lambda: target.encode() in terminal.output[nav_offset:],
+                      "editor restored after navigation", timeout=15)
+        terminal.pump(.2)
+        terminal.key(b"\x15", "clear-restored-editor-text")
+        screen = terminal.snapshot("tree-negative-idle")
+        no_stats(screen)
+        require(len(server.streams) == pre_nav, "Navigate-without-summary issued an inference request")
+    journey(f"after-{scenario}")
 
 
 def run_tui(command, env, scratch, evidence, server, scenario):
@@ -425,6 +587,9 @@ def run_tui(command, env, scratch, evidence, server, scenario):
             else:
                 require(post["return_progress"] is None, "Non-Splash request was enriched")
 
+        if scenario in SUMMARY_SCENARIOS:
+            run_summary(terminal, server, evidence, scenario, journey)
+            return terminal
         other = scenario == "non-splash"
         abort = scenario.removeprefix("abort-") if scenario.startswith("abort-") else None
         journey("first", other, abort)
@@ -571,12 +736,12 @@ def main():
                                 "apiKey": "verification-only", "authHeader": True, "models": [model]}
                          for name, prefix in (("verify-local", "/splash"), ("splash", "/other"))}
             dump(scratch / "agent/models.json", {"providers": providers})
-            dump(scratch / "agent/settings.json", {"quietStartup": False, "compaction": {"enabled": False},
-                                                   "packages": []})
+            dump(scratch / "agent/settings.json", build_settings(scenario))
             selected = "splash" if scenario == "non-splash" else "verify-local"
+            session_flags = [] if scenario in SUMMARY_SCENARIOS else ["--no-session"]
             command = [info["pi"], "--offline", "--no-extensions", "--no-mcp", "--no-skills",
                        "--no-prompt-templates", "--no-themes", "--no-context-files", "--no-approve",
-                       "--no-session", "--no-tools", "--provider", selected, "--model", MODEL,
+                       *session_flags, "--no-tools", "--provider", selected, "--model", MODEL,
                        "--thinking", "off", "--tui-mode", "regular"]
             if args.command != "self-test":
                 command += ["--extension", str(args.package.resolve())]
@@ -590,8 +755,14 @@ def main():
             dump(evidence / "files-after.json", after_files)
             require(before_files["config_hashes"]["models.json"] == after_files["config_hashes"]["models.json"],
                     "Provider configuration was modified")
-            require(not [p for p in after_files["files"] if p.startswith("work/") or "/sessions/" in p],
-                    "Unexpected working-directory/session writes")
+            unexpected = [p for p in after_files["files"] if p.startswith("work/")]
+            if scenario in SUMMARY_SCENARIOS:
+                # The persisted session is the journey's expected side effect; keep it as evidence.
+                require([p for p in after_files["files"] if "/sessions/" in p],
+                        "No persisted session file recorded for the summary journey")
+            else:
+                unexpected += [p for p in after_files["files"] if "/sessions/" in p]
+            require(not unexpected, "Unexpected working-directory/session writes")
             if args.command == "run" and scenario in ("non-splash", "print", "json", "rpc"):
                 tested_post = [e for e in server.events if e.get("method") == "POST"][-1]
                 if terminal:

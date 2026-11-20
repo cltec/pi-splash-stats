@@ -38,7 +38,7 @@ journey, not a weaker test that passes. Do not claim an entire AC from one parti
 | [Activation and switching](activation.md) | `chat`, `non-splash`, `switch` | AC-02/03/07/08/09/10/15 |
 | [Cache-aware prefill](prefill.md) | `chat`, `cached` | AC-03/04/10 |
 | [Generation feedback](generation.md) | `chat`, `cached` | AC-05/06 |
-| [Compaction and branch summaries](summaries.md) | Not yet seeded/driven | AC-05/11 |
+| [Compaction and branch summaries](summaries.md) | `compact`, `tree`, `tree-negative` | AC-05/11 |
 | [Cancellation, modes and delivery](lifecycle-and-modes.md) | aborts, `reload`, print/JSON/RPC | AC-01/11/12/13/14 |
 
 The listed ACs are required scope, not passing claims. Real Splash and offline/transport/package gates
