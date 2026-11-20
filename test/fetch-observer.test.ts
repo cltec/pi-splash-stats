@@ -374,6 +374,31 @@ test("observer: dispose restores the previous fetch and makes the wrapper inert"
   assert.equal(finalizes.length, 0);
 });
 
+test("observer: a retained wrapper reference is callable but inactive after dispose", async () => {
+  const { target, calls } = makeTarget(() => sseResponse(["data: x\n\n"]));
+  const frames: Record<string, unknown>[] = [];
+  const finalizes: FinalizeReason[] = [];
+  const dispose = installFetchObserver<{ tag: string }>({
+    target,
+    classify: (url, method) => (method === "POST" && url.endsWith("/chat/completions") ? { tag: "s" } : null),
+    enrich: (b) => ({ ...b, return_progress: true, stream_options: { include_usage: true } }),
+    onFrame: (_a, f) => frames.push(f),
+    onFinalize: (_a, r) => finalizes.push(r),
+  });
+  // Capture the wrapped fetch reference BEFORE disposal (an SDK client may retain it).
+  const retained = target.fetch;
+  dispose();
+  // The retained wrapper is still callable and delegates to the previous fetch.
+  const body = JSON.stringify({ model: "m", stream: true });
+  const response = await retained("http://h/v1/chat/completions", { method: "POST", body });
+  const text = await drain(response);
+  assert.ok(text.includes("data: x"), "retained wrapper delegates to the previous fetch");
+  // It is inactive: the body is passed through (not enriched) and no observation happens.
+  assert.equal(calls[0].init?.body, body, "body passed through unchanged (no enrichment)");
+  assert.equal(frames.length, 0, "no observation after dispose");
+  assert.equal(finalizes.length, 0, "no finalize after dispose");
+});
+
 test("observer: dispose does not overwrite a later extension's wrapper", async () => {
   const inner = async (_input: string, _init?: RequestInit): Promise<Response> => sseResponse(["data: x\n\n"]);
   const target = { fetch: inner as typeof fetch };
