@@ -1,1 +1,0 @@
-timeout waiting for chat 1 request; see terminal.ansi
