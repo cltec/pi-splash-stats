@@ -252,14 +252,17 @@ export function applyTimings(state: GenerationState, timings: unknown): void {
 }
 
 /**
- * Per-request statistics state (SPEC 9): unique id plus the selection
- * generation captured at request start, so late or stale work can be
- * rejected.
+ * Per-request statistics state (SPEC 9): a unique id plus the runtime/session
+ * and selection generations captured at request start, so late, stale, or
+ * cross-runtime work can be rejected.
  */
 let requestCounter = 0;
 
 export interface RequestState {
   id: number;
+  /** Runtime/session generation captured at request start (SPEC 9). */
+  runtimeGeneration: number;
+  /** Selection generation captured at request start (SPEC 9). */
   selectionGeneration: number;
   endpoint: string;
   modelId: string;
@@ -274,6 +277,7 @@ export interface RequestState {
 }
 
 export function createRequestState(
+  runtimeGeneration: number,
   selectionGeneration: number,
   endpoint: string,
   modelId: string,
@@ -283,6 +287,7 @@ export function createRequestState(
   requestCounter += 1;
   return {
     id: requestCounter,
+    runtimeGeneration,
     selectionGeneration,
     endpoint,
     modelId,
