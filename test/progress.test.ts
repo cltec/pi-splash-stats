@@ -223,10 +223,12 @@ test("7.5 chunk counts are never labeled exact", () => {
   assert.equal(gen.exact, null); // estimate only until final data
 });
 
-test("per-request state: unique ids and captured selection generation", () => {
-  const a = createRequestState(1, "http://h/v1", "m", "p", "openai-completions");
-  const b = createRequestState(2, "http://h/v1", "m", "p", "openai-completions");
+test("per-request state: unique ids and captured runtime/selection generations", () => {
+  const a = createRequestState(1, 1, "http://h/v1", "m", "p", "openai-completions");
+  const b = createRequestState(2, 2, "http://h/v1", "m", "p", "openai-completions");
   assert.notEqual(a.id, b.id);
+  assert.equal(a.runtimeGeneration, 1);
+  assert.equal(b.runtimeGeneration, 2);
   assert.equal(a.selectionGeneration, 1);
   assert.equal(b.selectionGeneration, 2);
   assert.equal(a.phase, "chat");

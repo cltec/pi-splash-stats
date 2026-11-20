@@ -29,9 +29,21 @@ import { enrichPayload, isPlainObject, matchesStreamRequest } from "./transport.
 import { UiController } from "./ui.ts";
 
 interface RuntimeState {
+  /** Increments on every session_start; identifies the runtime/session. */
+  runtimeGeneration: number;
+  /** Increments on session_start and model_select; guards in-flight work. */
   selectionGeneration: number;
+  /** The single active request, or null when none is in flight. */
   activeRequest: RequestState | null;
+  /**
+   * The request the turn/agent safety net may finalize (SPEC 9). Set when a
+   * request starts; cleared on finalization or a generation bump, so a stale
+   * boundary event never clears a newer active request.
+   */
+  armedRequest: RequestState | null;
   ui: UiController | null;
+  discovery: DiscoveryCache;
+  /** True after session_shutdown; the state is inert until a new session. */
   disposed: boolean;
 }
 
@@ -51,11 +63,13 @@ function resolveAuth(ctx: ExtensionContext, model: { id: string; baseUrl?: strin
 }
 
 export default function extension(pi: ExtensionAPI): void {
-  const discovery = new DiscoveryCache();
   const state: RuntimeState = {
+    runtimeGeneration: 0,
     selectionGeneration: 0,
     activeRequest: null,
+    armedRequest: null,
     ui: null,
+    discovery: new DiscoveryCache(),
     disposed: false,
   };
 
@@ -72,7 +86,7 @@ export default function extension(pi: ExtensionAPI): void {
 
   const startDiscovery = (ctx: ExtensionContext, model: { api?: string; baseUrl?: string; id?: string } | undefined): void => {
     if (state.disposed || !model) return;
-    void discovery
+    void state.discovery
       .ensure(model, () => resolveAuth(ctx, model as { id: string; baseUrl?: string; headers?: Record<string, string> }))
       .catch(() => false);
   };
@@ -87,6 +101,8 @@ export default function extension(pi: ExtensionAPI): void {
     request.finalized = true;
     if (state.activeRequest === request) state.activeRequest = null;
     clearOwnedUi();
+    // This request is no longer a safety-net target (SPEC 9).
+    if (state.armedRequest === request) state.armedRequest = null;
   };
 
   const isTui = (ctx: ExtensionContext): boolean => ctx.mode === "tui";
@@ -94,11 +110,16 @@ export default function extension(pi: ExtensionAPI): void {
   pi.on("session_start", (event, ctx) => {
     if (!isTui(ctx)) return;
     // Session replacement/reload discards all results (SPEC 5.3/9).
+    state.runtimeGeneration += 1;
     state.selectionGeneration += 1;
     state.activeRequest = null;
+    state.armedRequest = null;
     clearOwnedUi(); // release UI owned by the previous session
     state.ui = null;
     state.disposed = false;
+    // Fresh discovery cache per session: discard all identity results (SPEC 5.3/9).
+    state.discovery.dispose();
+    state.discovery = new DiscoveryCache();
     startDiscovery(ctx, ctx.model);
   });
 
@@ -106,6 +127,7 @@ export default function extension(pi: ExtensionAPI): void {
     if (!isTui(ctx)) return;
     state.selectionGeneration += 1;
     if (state.activeRequest) finalizeRequest(state.activeRequest);
+    state.armedRequest = null; // a generation bump invalidates the safety-net target
     clearOwnedUi();
     startDiscovery(ctx, event.model ?? ctx.model);
   });
@@ -117,7 +139,7 @@ export default function extension(pi: ExtensionAPI): void {
     const endpoint = normalizeEndpoint(model.baseUrl ?? "");
     if (!endpoint) return;
     const modelId = model.id;
-    return discovery
+    return state.discovery
       .ensure(model, () => resolveAuth(ctx, model))
       .then((verified) => {
         if (state.disposed || !verified) return;
@@ -125,8 +147,9 @@ export default function extension(pi: ExtensionAPI): void {
         const enriched = enrichPayload(event.payload, modelId);
         if (!enriched) return;
         if (state.activeRequest) finalizeRequest(state.activeRequest);
-        const request = createRequestState(state.selectionGeneration, endpoint, modelId, model.provider, model.api);
+        const request = createRequestState(state.runtimeGeneration, state.selectionGeneration, endpoint, modelId, model.provider, model.api);
         state.activeRequest = request;
+        state.armedRequest = request; // this request owns the turn/agent safety net
         ensureUi(ctx);
         return enriched;
       })
@@ -137,6 +160,9 @@ export default function extension(pi: ExtensionAPI): void {
     if (!isTui(ctx)) return;
     const request = state.activeRequest;
     if (!request || request.finalized) return;
+    // Reject late chunks from an older runtime/selection (SPEC 9).
+    if (request.runtimeGeneration !== state.runtimeGeneration) return;
+    if (request.selectionGeneration !== state.selectionGeneration) return;
     if (!matchesStreamRequest(request, event)) return;
     if (!isPlainObject(event.data)) return;
     const data = event.data;
@@ -196,12 +222,21 @@ export default function extension(pi: ExtensionAPI): void {
     }
   });
 
+  /**
+   * Safety-net cleanup on turn_end/agent_settled (SPEC 9): finalize the armed
+   * request only when it is still the active request (abrupt termination with
+   * no final chunk). Never clear a newer active request; clear orphaned owned
+   * UI only when no request is in flight.
+   */
   const safetyNetCleanup = (ctx: ExtensionContext): void => {
     if (!isTui(ctx)) return;
+    if (state.disposed) return;
     const request = state.activeRequest;
-    if (request && request.selectionGeneration === state.selectionGeneration) {
+    if (request && state.armedRequest === request && !request.finalized) {
       finalizeRequest(request);
+      return;
     }
+    if (!state.activeRequest) clearOwnedUi();
   };
 
   pi.on("turn_end", (_event, ctx) => {
@@ -214,14 +249,15 @@ export default function extension(pi: ExtensionAPI): void {
 
   pi.on("session_shutdown", (_event, ctx) => {
     if (!isTui(ctx)) {
-      discovery.dispose();
+      state.discovery.dispose();
       return;
     }
     state.disposed = true;
     state.activeRequest = null;
+    state.armedRequest = null;
     clearOwnedUi();
     state.ui?.dispose();
     state.ui = null;
-    discovery.dispose();
+    state.discovery.dispose();
   });
 }

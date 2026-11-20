@@ -62,7 +62,7 @@ test("isPlainObject distinguishes plain objects from arrays and null", () => {
 });
 
 test("stream attribution requires provider, api, and model to all match", () => {
-  const request = createRequestState(1, "http://h/v1", "verify-model", "verify-local", "openai-completions");
+  const request = createRequestState(1, 1, "http://h/v1", "verify-model", "verify-local", "openai-completions");
   assert.equal(matchesStreamRequest(request, { provider: "verify-local", api: "openai-completions", model: "verify-model" }), true);
   assert.equal(matchesStreamRequest(request, { provider: "splash", api: "openai-completions", model: "verify-model" }), false);
   assert.equal(matchesStreamRequest(request, { provider: "verify-local", api: "openai-responses", model: "verify-model" }), false);

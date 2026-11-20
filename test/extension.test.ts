@@ -83,6 +83,7 @@ function makeCtx(mode: string, model?: object) {
 }
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 const settle = () => new Promise((resolve) => setTimeout(resolve, 130));
 
 test("registers no commands, tools, or messages; only the expected event listeners", () => {
@@ -345,6 +346,174 @@ test("repeated registration is reload-safe: instances are independent", async ()
     const enriched = await piB.emit("before_provider_request", { payload }, ctxB);
     assert.equal(enriched?.return_progress, true);
     assert.equal(uiB.length, 0);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+// ---------------------------------------------------------------------------
+// S4 lifecycle hardening (SPEC 9, 11)
+// ---------------------------------------------------------------------------
+
+/** Last working-message line rendered (undefined after a clear / none). */
+function lastWorking(uiCalls: unknown[][]): string | undefined {
+  for (let i = uiCalls.length - 1; i >= 0; i--) {
+    if (uiCalls[i][0] === "working") return uiCalls[i][1] as string | undefined;
+  }
+  return undefined;
+}
+
+const prefillChunk = (total: number, cache: number, processed: number) => ({
+  data: { prompt_progress: { total, cache, processed, time_ms: 0 } },
+  provider: "verify-local",
+  api: "openai-completions",
+  model: "verify-model",
+});
+
+const finalChunk = (total: number, cache: number, generated: number) => ({
+  data: { delta: { finish_reason: "stop" }, usage: { prompt_tokens: total, completion_tokens: generated, cache_read_input_tokens: cache }, timings: { time_to_first_token_ms: 50, duration_ms: 100 } },
+  provider: "verify-local",
+  api: "openai-completions",
+  model: "verify-model",
+});
+
+test("a newer request starts fresh: no state leaks from a superseded request", async () => {
+  const fetch = modelsFetch(MODELS_OK);
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = fetch.impl;
+  const { api: pi, emit } = makePi();
+  const { ctx, uiCalls } = makeCtx("tui", { ...SPLASH_MODEL });
+  extension(pi);
+  try {
+    await emit("session_start", { reason: "startup" }, ctx);
+    // Request A starts and streams a prefill sample.
+    await emit("before_provider_request", { payload: { model: "verify-model", messages: [], stream: true } }, ctx);
+    await emit("provider_stream_event", prefillChunk(100, 25, 38), ctx);
+    await settle();
+    assert.match(lastWorking(uiCalls)!, /Prefilling\.\..*\s17%$/);
+    // Request B starts (same model — next turn); A is superseded and finalized.
+    await emit("before_provider_request", { payload: { model: "verify-model", messages: [], stream: true } }, ctx);
+    await emit("provider_stream_event", prefillChunk(200, 50, 50), ctx);
+    await settle();
+    // B starts fresh: its line reflects B's own report, NOT A's (17%). Only one
+    // request is ever tracked, so concurrent same-model streams cannot mix (SPEC 9).
+    assert.match(lastWorking(uiCalls)!, /Prefilling\.\..*\s0%$/, "B's state is fresh, not mixed with A");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("finalize exactly once: a duplicate final chunk and a late boundary are no-ops", async () => {
+  const fetch = modelsFetch(MODELS_OK);
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = fetch.impl;
+  const { api: pi, emit } = makePi();
+  const { ctx, uiCalls } = makeCtx("tui", { ...SPLASH_MODEL });
+  extension(pi);
+  try {
+    await emit("session_start", { reason: "startup" }, ctx);
+    await emit("before_provider_request", { payload: { model: "verify-model", messages: [], stream: true } }, ctx);
+    await emit("provider_stream_event", prefillChunk(100, 25, 38), ctx);
+    await settle();
+    // First final chunk finalizes the request and clears the UI once.
+    await emit("provider_stream_event", finalChunk(100, 25, 4), ctx);
+    const callsAfterFirstFinal = uiCalls.length;
+    // A duplicate final chunk must be a no-op (already finalized).
+    await emit("provider_stream_event", finalChunk(100, 25, 4), ctx);
+    await settle();
+    assert.equal(uiCalls.length, callsAfterFirstFinal, "double final chunk is a no-op");
+    // A late boundary event must also be a no-op (no active request, no orphaned UI).
+    await emit("turn_end", {}, ctx);
+    assert.equal(uiCalls.length, callsAfterFirstFinal, "late boundary after finalization is a no-op");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("/reload: a second session_start re-arms exactly one runtime, no stacked state", async () => {
+  const fetch = modelsFetch(MODELS_OK);
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = fetch.impl;
+  const { api: pi, emit } = makePi();
+  const { ctx, uiCalls } = makeCtx("tui", { ...SPLASH_MODEL });
+  extension(pi);
+  try {
+    await emit("session_start", { reason: "startup" }, ctx);
+    // A request in the first runtime.
+    await emit("before_provider_request", { payload: { model: "verify-model", messages: [], stream: true } }, ctx);
+    await emit("provider_stream_event", prefillChunk(100, 25, 38), ctx);
+    await settle();
+    // Reload: session_shutdown disposes the runtime, session_start("reload") re-arms one.
+    await emit("session_shutdown", {}, ctx);
+    await emit("session_start", { reason: "reload" }, ctx);
+    // The new runtime enriches exactly one active request (a fresh discovery cache).
+    const callsBefore = uiCalls.length;
+    const enriched = await emit("before_provider_request", { payload: { model: "verify-model", messages: [], stream: true } }, ctx);
+    assert.equal(enriched?.return_progress, true, "reload re-enriches");
+    await emit("provider_stream_event", prefillChunk(100, 25, 38), ctx);
+    await settle();
+    // Exactly one working-message render for the new request (no stacked UI).
+    const renders = uiCalls.slice(callsBefore).filter((c) => c[0] === "working" && c[1] !== undefined);
+    assert.equal(renders.length, 1, "reload produces exactly one active request render");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("retained late callbacks are inert after session_shutdown", async () => {
+  const fetch = modelsFetch(MODELS_OK);
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = fetch.impl;
+  const { api: pi, emit } = makePi();
+  const { ctx, uiCalls } = makeCtx("tui", { ...SPLASH_MODEL });
+  extension(pi);
+  try {
+    await emit("session_start", { reason: "startup" }, ctx);
+    await emit("before_provider_request", { payload: { model: "verify-model", messages: [], stream: true } }, ctx);
+    await emit("provider_stream_event", prefillChunk(100, 25, 38), ctx);
+    await settle();
+    // Shutdown makes the state inert.
+    await emit("session_shutdown", {}, ctx);
+    const callsAfterShutdown = uiCalls.length;
+    // A late stream chunk is inert.
+    await emit("provider_stream_event", prefillChunk(100, 25, 38), ctx);
+    // A late boundary event is inert.
+    await emit("turn_end", {}, ctx);
+    // A late before_provider_request is inert (no enrichment after shutdown).
+    const enriched = await emit("before_provider_request", { payload: { model: "verify-model", messages: [], stream: true } }, ctx);
+    assert.equal(enriched?.return_progress, undefined, "no enrichment after shutdown");
+    assert.equal(uiCalls.length, callsAfterShutdown, "no UI calls after shutdown");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("turn_end/agent_settled safety net does not clear a newer active request", async () => {
+  const fetch = modelsFetch(MODELS_OK);
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = fetch.impl;
+  const { api: pi, emit } = makePi();
+  const { ctx, uiCalls } = makeCtx("tui", { ...SPLASH_MODEL });
+  extension(pi);
+  try {
+    await emit("session_start", { reason: "startup" }, ctx);
+    // Request A starts, streams, and its turn ends via the safety net.
+    await emit("before_provider_request", { payload: { model: "verify-model", messages: [], stream: true } }, ctx);
+    await emit("provider_stream_event", prefillChunk(100, 25, 38), ctx);
+    await settle();
+    await emit("turn_end", {}, ctx); // safety net finalizes A
+    assert.equal(lastWorking(uiCalls), undefined, "A cleared by safety net");
+    // A NEWER request B starts and streams; its UI must survive A's cleanup.
+    await emit("before_provider_request", { payload: { model: "verify-model", messages: [], stream: true } }, ctx);
+    await emit("provider_stream_event", prefillChunk(200, 50, 50), ctx);
+    await settle();
+    assert.match(lastWorking(uiCalls)!, /Prefilling\.\..*\s0%$/, "B's UI is shown");
+    // B is now the newer active request. Its own final chunk finalizes it (one clear).
+    const callsBeforeFinal = uiCalls.length;
+    await emit("provider_stream_event", finalChunk(200, 50, 4), ctx);
+    // A stale/late boundary event after B's finalization must not touch anything.
+    await emit("agent_settled", {}, ctx);
+    assert.equal(uiCalls.length, callsBeforeFinal + 1, "late boundary is a no-op after B finalized (one clear)");
   } finally {
     globalThis.fetch = realFetch;
   }
