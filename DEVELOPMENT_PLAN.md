@@ -58,7 +58,7 @@ S6 packaging/docs/final gates (after S4, S5 merged; S5 harness work may feed in 
 - **Evidence:** `.verification-evidence/<run-id>/result.json` + `http.jsonl` + baseline diff.
 - **Gate:** all above green on the exact worker revision; reviewer PASS.
 
-### S2 — Identity-verified first Splash request with prefill
+### S2 — Identity-verified first Splash request with prefill  *(merged with S3 for assignment, see note)*
 - **Outcome:** first chat request to a verified Splash endpoint shows the cache-aware prefill
   line (bar/%/rate/ETA) as Pi's working message; non-Splash endpoints remain byte-identical.
 - **Scope:** `src/identity.ts` (URL normalization, candidate rule, identity response validation
@@ -78,7 +78,7 @@ S6 packaging/docs/final gates (after S4, S5 merged; S5 harness work may feed in 
   `V run switch` (clear on switch away, resume on return); `V run abort-prefill`.
 - **Gate:** reviewer PASS on exact revision; AC-03/04/07/08/09/10/15 (fixture scope) evidenced.
 
-### S3 — Generation feedback, final counts, per-request resets
+### S3 — Generation feedback, final counts, per-request resets  *(merged with S2 for assignment, see note)*
 - **Outcome:** live `≈` estimated generation count in the `pi-splash-stats` widget during chat
   generation (after prefill line is restored to default), replaced by exact
   `usage.completion_tokens` > `timings.predicted_n`, authoritative final rates shown only when
@@ -147,6 +147,12 @@ S6 packaging/docs/final gates (after S4, S5 merged; S5 harness work may feed in 
 - **Gate:** reviewer PASS; AC-01/14 evidenced; AC-12 re-audited (source + side-effect evidence).
 
 ## 4. Risks / blockers
+
+> **Sequence adjustment (2026-11-20, leader):** S2 and S3 are delivered as ONE implementation
+> assignment. Evidence: the harness `run chat` gate asserts prefill **and** `≈` generation in the
+> same drive, and both slices own the same core files (`src/index.ts`, `transport.ts`, `ui.ts`),
+> so S2 alone has no independently green harness gate. The combined slice's gate is explicit
+> (chat + cached + non-splash + switch + both aborts). Downstream IDs (S4/S5/S6) unchanged.
 
 | Risk | Mitigation |
 | --- | --- |
