@@ -7,7 +7,7 @@ This project releases from an explicit, manually pushed stable tag. It does **no
 
 The release workflow validates the tag and package identity before any publication work. If the variable is absent or not exactly `true`, the validation, Node 22/24 checks, and Pi smoke still run, but the package, publish, and GitHub Release jobs are skipped. If the variable is `true` while the package is still private, the validation job fails closed before packing.
 
-The repository in `package.json` is also a guard. Until `OWNER/REPOSITORY` is replaced and it matches `github.repository`, release validation fails.
+The repository in `package.json` is also a guard: it must be the canonical GitHub URL and match `github.repository` (here `cltec/pi-splash-stats`), otherwise release validation fails.
 
 ## One-time setup
 
@@ -15,7 +15,7 @@ The repository in `package.json` is also a guard. Until `OWNER/REPOSITORY` is re
 
 Complete the package metadata first. At minimum:
 
-- Replace `OWNER` and `REPOSITORY` in `package.json`, documentation, and workflow references.
+- Keep `repository` as the canonical GitHub URL (`https://github.com/cltec/pi-splash-stats`) in `package.json`, documentation, and workflow references.
 - Set the real package `name`, `version`, `description`, and repository metadata.
 - Keep `repository` as the canonical GitHub URL for the repository that runs this workflow.
 - Change `"private": true` to `"private": false` only when you are ready to publish.

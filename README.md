@@ -50,7 +50,7 @@ stripping. There is no lint, typecheck, or build step; stripping does not typech
 pi install /absolute/path/to/pi-splash-stats
 
 # From Git
-pi install git:github.com/OWNER/REPOSITORY
+pi install git:github.com/cltec/pi-splash-stats
 
 # From npm (only after publishing is explicitly enabled)
 pi install npm:pi-splash-stats
@@ -58,8 +58,8 @@ pi install npm:pi-splash-stats
 
 For one run without changing Pi settings, use `pi -e /path/to/pi-splash-stats`.
 
-`OWNER` and `REPOSITORY` in the URLs are placeholders until a real repository exists; the package
-is currently `private` and not published.
+The package is currently `private` and not published to npm; the `npm:` form works only after
+publishing is explicitly enabled (see [docs/RELEASING.md](docs/RELEASING.md)).
 
 ## Usage
 
@@ -90,7 +90,7 @@ Use `pi remove` with the same source string you installed from. Pi matches sourc
 
 ```bash
 pi remove /absolute/path/to/pi-splash-stats
-pi remove git:github.com/OWNER/REPOSITORY
+pi remove git:github.com/cltec/pi-splash-stats
 pi remove npm:pi-splash-stats
 ```
 
@@ -163,10 +163,9 @@ issue.
 
 ## Support
 
-- Open an issue at https://github.com/OWNER/REPOSITORY/issues for reproducible bugs and
+- Open an issue at https://github.com/cltec/pi-splash-stats/issues for reproducible bugs and
   documentation gaps.
 - Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md), not in a public issue.
-- Replace the placeholder repository URLs before publishing or soliciting support.
 
 ## Documentation
 

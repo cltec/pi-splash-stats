@@ -27,7 +27,7 @@
   "peerDependencies": { "@earendil-works/pi-coding-agent": "*" },
   "engines": { "node": ">=22.18.0" },
   "license": "Apache-2.0",
-  "repository": { "type": "git", "url": "git+https://github.com/OWNER/REPOSITORY.git" },
-  "bugs": { "url": "https://github.com/OWNER/REPOSITORY/issues" },
-  "homepage": "https://github.com/OWNER/REPOSITORY#readme"
+  "repository": { "type": "git", "url": "git+https://github.com/cltec/pi-splash-stats.git" },
+  "bugs": { "url": "https://github.com/cltec/pi-splash-stats/issues" },
+  "homepage": "https://github.com/cltec/pi-splash-stats#readme"
 }

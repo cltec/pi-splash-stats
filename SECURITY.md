@@ -10,9 +10,10 @@
 
 Report vulnerabilities privately through GitHub Security Advisories:
 
-https://github.com/OWNER/REPOSITORY/security/advisories/new
+https://github.com/cltec/pi-splash-stats/security/advisories/new
 
-Do not open a public issue for a vulnerability. If the placeholder above has not been replaced, use the repository's **Security** tab and choose **Report a vulnerability**.
+Do not open a public issue for a vulnerability. If the GitHub Security Advisories feature is
+unavailable, use the repository's **Security** tab and choose **Report a vulnerability**.
 
 Include:
 

@@ -21,8 +21,8 @@ There is no lint, typecheck, or build step. Node strips TypeScript types; it doe
 ## Setup
 
 ```bash
-git clone https://github.com/OWNER/REPOSITORY.git
-cd REPOSITORY
+git clone https://github.com/cltec/pi-splash-stats.git
+cd pi-splash-stats
 npm test
 ```
 
