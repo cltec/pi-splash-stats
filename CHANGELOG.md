@@ -3,6 +3,13 @@
 Notable changes to this project. Entries are grouped by release; the latest is listed first.
 This repository follows [Keep a Changelog](https://keepachangelog.com/) for entry style.
 
+## [0.1.1]
+
+### Changed
+
+- README: credit `pi-llama-cpp-stats` as the inspiration for this extension.
+- README: link the [Splash](https://github.com/incoai/splash) server repository where Splash is mentioned.
+
 ## [0.1.0]
 
 Initial release of the `pi-splash-stats` Pi extension.

@@ -1,12 +1,14 @@
 # Pi Splash Stats
 
-A Pi extension that shows live inference statistics for OpenAI-compatible **Splash** servers in the
+A Pi extension that shows live inference statistics for OpenAI-compatible [**Splash**](https://github.com/incoai/splash) servers in the
 interactive terminal UI: a **cache-aware prefill progress bar** while the prompt is being processed,
 and a **live generation token count** while the model streams its answer.
 
 It is a passive observer. It enriches and watches the inference traffic Pi already sends to a
 verified Splash backend, then renders two transient status lines in the TUI. It changes no prompts,
 no tools, and no responses, and it stays completely silent in every non-interactive mode.
+
+This extension is inspired by [pi-llama-cpp-stats](https://www.npmjs.com/package/pi-llama-cpp-stats).
 
 ```
  ── ⠸ Prefilling... ██████████░░░░░░░░░░  50% · 2s · 20.0 tok/s ─────────────────────
@@ -71,7 +73,7 @@ response completes or is aborted.
 
 Two launch workflows both work and produce equivalent statistics for the same Splash-served model:
 
-- **`splash pi ...`** — the Splash launcher starts Pi already pointed at a running Splash model. The
+- **`splash pi ...`** — the [Splash](https://github.com/incoai/splash) launcher starts Pi already pointed at a running Splash model. The
   extension observes that model's requests exactly as it would for a directly launched Pi; it does not
   inspect the launcher, parent process, or a particular provider name. If you switch to a non-Splash
   (e.g. cloud) model, the stats clear immediately and subsequent requests are left untouched.
