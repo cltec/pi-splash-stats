@@ -15,9 +15,9 @@ worker revision, then re-runs affected gates on `main`.
 | S4 lifecycle, non-TUI modes, reload, ownership | integrated | worker-impl-a | reviewer | `s4-lifecycle` | `25bc73e` (no-ff merge `4f071ca`) | reviewer re-runs `20261120T155110-*`…`155308-*` (9 PASS + known abort-generation race) | Reviewer PASS: ownership generations, finalize-once, safety net, shutdown disposal, reload fresh cache, coexistence. Post-integration: 162/162 + 8 journeys PASS on main. Residual (accepted): same-model late-chunk ambiguity at hook layer — resolved by S5 observer attribution. |
 | S5a summary-transport spike + ADR input | integrated (ADR input) | worker-impl-b | reviewer | `s5a-summary-spike` | `44bac97`, `3aad43e` + ADR wording fix | s5a worktree `probe/evidence-rpc/`, `probe/evidence-tui/`, `docs/adr/0002-transport-coverage.md` | Reviewer PASS: hooks fire only for chat; compaction/tree summaries bypass `before_provider_request`/`provider_stream_event` (static + live evidence). Fetch observer required for S5. |
 | S5h harness extension: compact/tree journeys (parallel) | integrated | worker-impl-b | reviewer | `s5h-harness` | `532a5aa` → rework `5daabf2` (no-ff merge `ec34b31`) | reviewer re-runs: compact `20261120T162211-66c3124c`, tree `20261120T162225-305b93eb`, tree-negative `20261120T162237-8261bfbf` | Round 1 FAIL (harness captured seed-turn POST as summary request; false "header hook enrichment" doc claim) → rework → PASS. summary-request.json shows the genuine summary POST with `return_progress: null` (confirms ADR 0002; pi-ai adds include_usage natively). Honest red path: compact/tree FAIL at first summary-stats assertion = S5 product gap. |
-| S5 compaction/tree summaries + fetch observer | implementing | worker-impl-b | reviewer | `s5-summaries` | — | — | transport decision: observer-side enrichment of owned verified summary requests (§6/§10.2; ADR 0002 finalization) |
-| s6h harness: abort-generation race fix (parallel) | implementing | worker-impl-a | reviewer | `s6h-abort-race` | — | — | fixture release→finish delay; assertions unchanged; owns .cursor only |
-| S6 packed package, docs, final gates, qualification | planned | worker-impl-a | reviewer | — | — | — | depends S4/S5 |
+| S5 compaction/tree summaries + fetch observer | integrated | worker-impl-b | reviewer | `s5-summaries` | `d8f3d8e` + follow-up `1d724e1` (no-ff merge `7bca16c`) | reviewer sweep: compact `20261120T175229-884c4cb3`, tree `20261120T175244-d33defde`, tree-negative `20261120T175255-99f801f5` + 9 regression journeys; follow-up re-verify 198/198 | Reviewer PASS after one evidence-location ruling (typo, checkouts confirmed correct) + 2 non-gating follow-ups (ADR `return_progress` sentence; retained-wrapper unit test). §10.2 observer verified bullet-by-bullet; ADR 0002 Accepted. Post-integration: 198/198 + 13 journeys green on main. |
+| s6h harness: abort-generation race fix (parallel) | integrated | worker-impl-a | reviewer | `s6h-abort-race` | `22aecf9` (no-ff merge `754009f`) | reviewer re-runs: abort-generation ×2 PASS (`20261120T174830-cd7c95b6`, `…174842-87e28c8c`) + chat/abort-prefill/non-splash | Reviewer PASS: 0.5 s final-frame hold (`ABORT_GENERATION_HOLD_SECONDS`), abort-generation scenario only, no assertion changes. abort-generation now deterministic on main. |
+| S6 packed package, docs, final gates, qualification | integrated | worker-impl-a | reviewer | `s6-final` | `fb2a7e0`…`c006dc2` + rework `f815f1c` (no-ff merge `d1ec81e`) | reviewer sweep: all 14 journeys PASS (packed `20261120T204117-15f9419f`), e2e 4/4 incl. portable packed-archive, 198/198; rework re-verify `20261121T022831-*` | Round 1 FAIL (docs-only: summaries.md stale, README missing `splash pi` workflow, ADR missing timing-field rationale, template leftovers) → rework → PASS. Packed journey loads the npm-packed tarball (no --extension). Qualification record final: real Splash NOT PERFORMED. |
 
 ## AC coverage (running)
 
@@ -26,28 +26,30 @@ qualification still open for every AC):
 
 | AC | Status | Evidence |
 | --- | --- | --- |
-| AC-01 | verified (checkout load; packed journey pending S6) | S1 reviewer report; `npm` gates green on main `5deffce` |
-| AC-02 | PARTIAL — auto activation proven for directly launched Pi with configured provider; `splash pi` launcher pending real Splash | S2 chat run `20261120T141102-ae880875` |
-| AC-03 | verified (fixture) | S2 chat run; 50% prefill after bounded discovery |
-| AC-04 | verified (fixture) | S2 chat + cached runs (cache=20 baseline, 20.0 tok/s) |
-| AC-05 | PARTIAL — chat verified (≈ counts, widget); tool-follow-up + summaries pending (S5) | S2 chat/cached runs |
-| AC-06 | PARTIAL — reducer precedence + zero-rate verified offline (157 tests); final-frame fixture gate absent (documented) | S2 `test/progress.test.ts`; reviewer math spot-checks |
-| AC-07 | verified (fixture, deceptive provider named `splash`) | S2 non-splash run `20261120T125839-f1296c50` |
-| AC-08 | verified (fixture: llama.cpp-owned endpoint with compatible timings stays silent) | same non-splash run |
-| AC-09 | verified (fixture) | S2 switch run `20261120T125846-4cdb0e6a` |
-| AC-10 | PARTIAL — non-default port, prefixed mount, dummy auth verified; IPv6/aliases/remote pending (offline tests + real Splash) | S2 runs + offline suites |
-| AC-11 | PARTIAL — abort-prefill, reload, shutdown verified; abort-generation BLOCKED by harness race (confirmed, no-op baseline fails identically); mid-flight races pending S4 wiring | S2 runs; reviewer race ruling |
-| AC-12 | PARTIAL — no persistence/config mutation in fixture runs; full source audit pending S6 | S1/S2 reviewer privacy findings |
-| AC-13 | verified (fixture) | S2 print/json/rpc runs `20261120T130121-*` |
-| AC-14 | in progress — offline/package/real-Pi-fixture gates green on main; packed + real Splash pending | main `5deffce` gate sweep |
-| AC-15 | PARTIAL — direct-Pi identity-based activation verified; `splash pi` equivalence pending real Splash | S2 chat + non-splash runs |
+| AC-01 | verified (checkout load + packed-tarball journey) | S6 packed run `20261120T204117-15f9419f`; final sweep on `d1ec81e` |
+| AC-02 | verified (fixture) — direct-Pi auto activation; `splash pi` documented, real-launcher equivalence pending real Splash | S6 chat run; README workflow section |
+| AC-03 | verified (fixture) | final sweep chat run on `d1ec81e` |
+| AC-04 | verified (fixture) | final sweep chat + cached runs |
+| AC-05 | verified (fixture) — chat + compaction + branch summaries (≈ counts, widget); tool-follow-up pending real Splash | final sweep chat/compact/tree runs |
+| AC-06 | verified (fixture + offline) — reducer precedence, zero-rate, final-frame via harness gates | 198 offline tests + journey gates |
+| AC-07 | verified (fixture, deceptive provider named `splash`) | final sweep non-splash run |
+| AC-08 | verified (fixture: llama.cpp-owned endpoint with compatible timings stays silent) | final sweep non-splash run; ADR 0001 rationale |
+| AC-09 | verified (fixture) | final sweep switch run |
+| AC-10 | PARTIAL — non-default port, prefixed mount, dummy auth verified (fixture); IPv6/aliases/remote pending real Splash | S2/S6 runs + offline suites |
+| AC-11 | verified (fixture) — abort-prefill, abort-generation (post s6h), reload, shutdown | final sweep runs |
+| AC-12 | verified (fixture + source audit) — no persistence/config mutation; reviewer privacy audits each slice | reviewer privacy findings S1–S6 |
+| AC-13 | verified (fixture) | final sweep print/json/rpc runs |
+| AC-14 | PARTIAL — offline/package/real-Pi-fixture/packed gates all green with recorded evidence; real Splash manual qualification NOT PERFORMED (no real Splash in environment) | qualification record; final sweep on `d1ec81e` |
+| AC-15 | PARTIAL — direct-Pi identity-based activation verified (fixture); `splash pi` equivalence pending real Splash | S6 runs; README |
 
 ## Uncovered / blocked
 
-- Real Splash §12.4 manual qualification: BLOCKED (no real Splash install/model in this
-  environment so far; to be confirmed during S6).
-- Tool-follow-up, summary, mid-flight race, narrow-terminal journeys: harness gaps, tracked in
-  S5/S6 and offline tests.
+- Real Splash §12.4 manual qualification: NOT PERFORMED — no real Splash install/model in this
+  environment. Recorded as unverified in the qualification record (spec-permitted residual;
+  everything fixture-verifiable is verified).
+- Real-Splash-only residuals: `splash pi` launcher equivalence, tool follow-up, automatic/recovery
+  compaction, alternate summary model, remote/IPv6/auth-failure paths, exact final transient
+  counts, narrow layout, other-extension coexistence under load.
 
 ## Progress log
 
@@ -65,4 +67,10 @@ qualification still open for every AC):
   integrated (`4f071ca`; 162/162 + 8 journeys green on main). S5h FAIL (wrong POST capture + false doc
   claim) → rework → PASS → integrated (`ec34b31`). Transport decision for S5: scoped fetch observer
   with observer-side enrichment of owned verified summary requests. Assigned S5 + s6h (abort-generation
-  fixture race fix, parallel).
+  fixture race fix, parallel). S5 + s6h both verified PASS (S5 after evidence-location ruling + 2
+  non-gating follow-ups) → integrated (`754009f`, `7bca16c`; 198/198 + 13 journeys green on main).
+  S6 round 1 FAIL (docs-only: stale summaries.md, missing `splash pi` workflow, missing ADR
+  timing-field rationale, template leftovers) → rework `f815f1c` → PASS → integrated (`d1ec81e`).
+  FINAL state on main: 198/198 tests, e2e 4/4 (portable packed-archive), all 14 harness journeys
+  PASS incl. packed-tarball journey; real Splash qualification recorded as NOT PERFORMED.
+  All slices complete.
