@@ -16,7 +16,7 @@ no tools, and no responses, and it stays completely silent in every non-interact
 ## What you get
 
 - **Cache-aware prefill progress.** A 20-cell bar with percentage, elapsed time, and uncached
-  throughput (`Prefilling... ▓▓▓░░░ NN% · 2s · 20.0 tok/s`). Cached tokens are not re-counted, so
+  throughput (`Prefilling... ████░░░░ NN% · 2s · 20.0 tok/s`). Cached tokens are not re-counted, so
   the bar reflects the work actually being done.
 - **Live generation count.** An approximate token count that grows while the answer streams
   (`Generating... ≈123 tok`), marked with `≈` because it is an estimate, not a final total.
@@ -63,10 +63,22 @@ is currently `private` and not published.
 
 ## Usage
 
-Install the extension and use Pi as usual. When you run a chat against a verified Splash backend,
-the prefill bar appears while the prompt is processed and the generation count appears while the
-answer streams. No configuration, flags, or commands are needed. The statistics are transient: they
-clear when the response completes or is aborted.
+Install the extension and use Pi as usual. The statistics appear automatically while a chat to a
+**verified Splash backend** is in flight — no configuration, flags, commands, or launcher handshake.
+Activation depends only on the backend serving the current request, never on how Pi was launched
+(SPECIFICATION.md §2, Decision D1, AC-02/AC-15). The statistics are transient: they clear when the
+response completes or is aborted.
+
+Two launch workflows both work and produce equivalent statistics for the same Splash-served model:
+
+- **`splash pi ...`** — the Splash launcher starts Pi already pointed at a running Splash model. The
+  extension observes that model's requests exactly as it would for a directly launched Pi; it does not
+  inspect the launcher, parent process, or a particular provider name. If you switch to a non-Splash
+  (e.g. cloud) model, the stats clear immediately and subsequent requests are left untouched.
+- **Pi launched directly** — configure Pi with a Splash-served OpenAI-compatible model (including a
+  server on a non-default port) and run Pi normally. The extension verifies the backend through the
+  Splash discovery protocol and shows stats while that model streams. Arbitrary configured provider
+  names do not prevent activation; a non-Splash provider simply shows no stats.
 
 The extension reads no configuration, environment variables, or files, keeps no state between
 invocations, and starts no background work.

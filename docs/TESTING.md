@@ -9,7 +9,7 @@ The project uses layered checks: fast offline tests for the adapter and tooling 
 | Node.js | 22.18 or newer. CI runs Node 22 and 24 on Linux with the same commands; local verification here uses Node 22. |
 | Platform | Linux. Other operating systems are not currently verified. |
 | Pi | 1.5.2 baseline for e2e, pinned in `scripts/quality.json`. |
-| Dependencies | None. Do not run `npm install`. E2E also needs a Pi binary and a system `tar` (the packed listing uses portable `tar -tf`, so GNU- and BSD-tar both work). |
+| Dependencies | None. Do not run `npm install`. E2E also needs a Pi binary and a system `tar` (the packed listing uses portable `tar -tf`, GNU- and BSD-compatible). |
 | Network | `npm test` and `npm run check` are offline. E2E execution is offline. CI's initial pinned Pi install requires network. |
 
 Node strips TypeScript types for the tests; it does not typecheck. There is no lint, typecheck, or build step.
@@ -28,7 +28,9 @@ Node strips TypeScript types for the tests; it does not typecheck. There is no l
 
 ## Adapter wiring
 
-The behavior lives in pure modules, each tested directly without Pi:
+The offline `npm test` suite is **198 tests**: pure-module tests for each behavior module (below),
+a wiring suite, and tooling-helper tests. The behavior lives in pure modules, each tested directly
+without Pi:
 
 | Test file | Module under test |
 | --- | --- |
@@ -86,7 +88,7 @@ When adding a publishable resource, update `package.json#files` and the check to
 
 1. **Checkout RPC:** Pi loads `src/index.ts` with `-e`; the test asserts the silent extension registers no commands and produces no notifications.
 2. **Headless JSON:** Pi runs with `--mode json`, loads the checkout with `-e`, and the test asserts the silent extension emits no custom messages and exits cleanly.
-3. **Packed archive RPC:** the runner packs the current tree, or reuses an exact checked archive via `PACKAGE_ARCHIVE=/absolute/file.tgz`. It lists and extracts the tarball with a system GNU-compatible `tar` (regular files and directories only), writes a temporary Pi `settings.json` whose `packages` entry points at the extracted directory, and starts Pi in RPC mode. Pi loads the extension from the package manifest.
+3. **Packed archive RPC:** the runner packs the current tree, or reuses an exact checked archive via `PACKAGE_ARCHIVE=/absolute/file.tgz`. It lists the tarball with portable `tar -tf` (GNU- and BSD-compatible) and extracts it with `tar -xzf` (regular files and directories only), writes a temporary Pi `settings.json` whose `packages` entry points at the extracted directory, and starts Pi in RPC mode. Pi loads the extension from the package manifest.
 
 For the RPC paths, the checks establish that Pi starts, no extension command is discoverable, the session stays idle, and no notifications are produced. The packed path also proves that the release allowlist contains the entry point and manifest.
 
@@ -134,11 +136,12 @@ The runner writes a sanitized schema-1 result to `artifacts/e2e-result.json`, or
 
 Beyond the offline `node:test` suite and the e2e smoke, the repository ships a real-Pi verification
 harness at [`.cursor/skills/verify-pi-splash-stats`](../.cursor/skills/verify-pi-splash-stats/SKILL.md)
-(`scripts/verify.py`, Python 3.10+ stdlib only). It drives a **real Pi PTY** (120×40, regular mode)
-and the non-TUI modes against a local loopback protocol fixture, and it is the layer that proves the
-user-visible behavior end to end: the prefill bar, the generation count, cache-awareness, mode
-silence, cancellation, reload, model switching, compaction/branch summaries, and the **packed
-package** (it runs `npm pack`, extracts the tarball, and loads the artifact through the Pi manifest).
+(`scripts/verify.py`, Python 3.10+ stdlib only). It runs **14 journeys** against a **real Pi PTY**
+(120×40, regular mode) and the non-TUI modes against a local loopback protocol fixture, and it is
+the layer that proves the user-visible behavior end to end: the prefill bar, the generation count,
+cache-awareness, mode silence, cancellation, reload, model switching, compaction/branch summaries, and
+the **packed package** (it runs `npm pack`, extracts the tarball, and loads the artifact through the
+Pi manifest).
 
 It is a how-to for an agent, not a CI job: run `"$V" doctor` first, then `"$V" run <scenario>` for
 the scenario you touched. It never installs, fetches, or calls a real provider; it writes only

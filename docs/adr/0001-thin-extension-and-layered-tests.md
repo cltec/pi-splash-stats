@@ -70,6 +70,16 @@ Keep the Pi adapter thin and test the system in layers.
    tarball with a portable system `tar` (`tar -tf`, no GNU-only flags), loads the extracted directory
    through a temporary Pi `settings.json` `packages` entry, and discovers the extension from the
    manifest. It does not run `pi install` or contact a registry.
+8. **Identity-gated activation, not timing-field-gated.** The extension activates only after the
+   Splash discovery protocol verifies the backend: a `GET <base>/models` response whose `data` array
+   contains an object whose `id` exactly matches the request's model and whose `owned_by` is exactly
+   `"splash"` (SPECIFICATION.md §5.2). Timing fields are deliberately **not** an activation signal.
+   OpenAI-compatible and llama.cpp endpoints can emit `prompt_progress`-compatible and
+   `timings`-compatible fields (SPECIFICATION.md §5.5, AC-08), so detecting those fields alone would
+   activate the extension on a non-Splash backend and misattribute its traffic. Provider names,
+   ports, model names, and HTTP server headers are equally insufficient. The scoped `fetch` observer
+   in [ADR 0002](0002-transport-coverage.md) reuses this same identity gate for summary requests, so
+   summary activation is identity-gated too, not timing-gated.
 
 ## Consequences
 

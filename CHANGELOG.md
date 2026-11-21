@@ -10,7 +10,7 @@ Initial release of the `pi-splash-stats` Pi extension.
 ### Added
 
 - **Cache-aware prefill progress.** A 20-cell progress bar with percentage, elapsed time, and
-  uncached throughput (`Prefilling... ▓▓▓░░░ NN% · 2s · 20.0 tok/s`) while a verified Splash request
+  uncached throughput (`Prefilling... ████░░ NN% · 2s · 20.0 tok/s`) while a verified Splash request
   is being processed. Cached tokens are not re-counted.
 - **Live generation count.** An approximate token count that grows while the answer streams
   (`Generating... ≈123 tok`), marked with `≈` because it is an estimate.
