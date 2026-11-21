@@ -90,7 +90,7 @@ Source: `package.json` and the repository scripts. No lint, typecheck, or build 
 
 ## Codebase state
 
-- The package is `pi-splash-stats`, a silent walking skeleton with no runtime dependencies. It registers nothing user-visible; statistics behavior is added by later slices. The SPECIFICATION.md acceptance criteria are the contract for those slices.
+- The package is `@cltec/pi-splash-stats` (npm, scoped to the `cltec` org; repository `cltec/pi-splash-stats`), a Pi extension with no runtime dependencies. It renders prefill/generation statistics for Splash backends in the TUI and stays silent in print/JSON/RPC modes. The SPECIFICATION.md acceptance criteria are the contract for the behavior.
 - There is no build, lint, or typecheck. CI runs the checks on Node 22 and 24 on Linux and installs the pinned Pi version from `scripts/quality.json` into a temporary prefix outside the checkout; that install needs network, while the checks themselves are offline.
 - TypeScript is stripped, not typechecked. Avoid parameter properties, enums, and namespaces.
 - The checkout is loaded with `-e`; the packed archive is extracted and loaded as a local directory through the Pi manifest in `package.json`. E2E does not exercise the `pi install` command or registry installation.

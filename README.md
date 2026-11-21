@@ -53,7 +53,7 @@ pi install /absolute/path/to/pi-splash-stats
 pi install git:github.com/cltec/pi-splash-stats
 
 # From npm (only after publishing is explicitly enabled)
-pi install npm:pi-splash-stats
+pi install npm:@cltec/pi-splash-stats
 ```
 
 For one run without changing Pi settings, use `pi -e /path/to/pi-splash-stats`.
@@ -91,7 +91,7 @@ Use `pi remove` with the same source string you installed from. Pi matches sourc
 ```bash
 pi remove /absolute/path/to/pi-splash-stats
 pi remove git:github.com/cltec/pi-splash-stats
-pi remove npm:pi-splash-stats
+pi remove npm:@cltec/pi-splash-stats
 ```
 
 The extension keeps no configuration or state of its own. If you loaded it with `pi -e`, there is

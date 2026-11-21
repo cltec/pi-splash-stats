@@ -50,10 +50,10 @@ Then log in and publish:
 ```bash
 npm login --registry=https://registry.npmjs.org/
 npm whoami --registry=https://registry.npmjs.org/
-npm publish --registry=https://registry.npmjs.org/ --ignore-scripts
+npm publish --registry=https://registry.npmjs.org/ --ignore-scripts --access public
 ```
 
-Add `--access public` when publishing a scoped package. Complete npm's browser and 2FA prompts. Never reuse an old package name or publish from an uncommitted checkout. Once the package exists, configure its trusted publisher.
+The `--access public` flag is required because the package is scoped (`@cltec/pi-splash-stats`) and publishes to the `cltec` npm org. Complete npm's browser and 2FA prompts. Never reuse an old package name or publish from an uncommitted checkout. Once the package exists, configure its trusted publisher.
 
 ### 4. Configure npm trusted publishing
 
@@ -148,8 +148,8 @@ The publish job has `id-token: write`; the GitHub Release job has `contents: wri
 Check all of these:
 
 - **Actions → Release** has successful preflight, Node 22/24 checks, Pi smoke, package, publish, and GitHub Release jobs.
-- npm lists the expected version, for example `npm view pi-splash-stats@0.2.0 version`.
-- The npm archive integrity matches the checked release record, for example `npm view pi-splash-stats@0.2.0 dist.integrity`.
+- npm lists the expected version, for example `npm view @cltec/pi-splash-stats@0.2.0 version`.
+- The npm archive integrity matches the checked release record, for example `npm view @cltec/pi-splash-stats@0.2.0 dist.integrity`.
 - GitHub Releases has the matching tag and notes.
 
 ## Recover from a failure
