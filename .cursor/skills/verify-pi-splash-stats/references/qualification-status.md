@@ -2,11 +2,16 @@
 
 ## Boundary
 
-**Development harness exercised; product skill remains provisional until an implemented feature is driven.**
-The initial repository contained only `SPECIFICATION.md`, explicitly marked proposed/no implementation.
-No package, source, template tests, lockfile, or Splash model was present. Nothing was bootstrapped,
-published, installed, or silently implemented to hide that blocker. Product proof required by the
-skill generator's end-to-end step cannot honestly be completed yet.
+**Implementation complete; every bundled harness journey passes against a local protocol fixture.
+Real Splash qualification has NOT been performed.**
+
+The extension is implemented (S1–S6) and every bundled journey — unit/wiring tests, the package
+allowlist, the real-Pi e2e (checkout RPC, headless JSON, packed archive), and all 14 PTY journeys
+including the packed-package journey — passes against a local loopback protocol fixture. A green
+harness run is bounded integration evidence; it does **not** qualify real Splash, the launcher,
+auto/recovery compaction, remote/IPv6/auth failure, exact transient counts, narrow layout, or
+other-extension coexistence. The final gate sweep and its run-ids are recorded at the end of this
+file.
 
 ## Executed on 2026-11-20
 
@@ -115,6 +120,51 @@ clean teardown. `chat`/`cached` and every other journey keep their current timin
 boundary stand-in; the 0.5 s hold is scaffolding, not a real-backend behavior, and is scoped to the
 `abort-generation` scenario so no other journey's timing changed.
 
+## Final gate sweep, executed 2026-11-20 (S6)
+
+Environment: macOS arm64; Node v22.23.5; installed Pi 1.5.2; Python 3.13. This is the S6 final
+record after the packed-package journey landed. Every offline check, the real-Pi e2e, and all 14
+PTY journeys pass. Evidence paths are relative to the repository root and persist locally.
+
+**Offline and real-Pi checks**
+
+| Command | Exit | Result |
+| --- | --- | --- |
+| `npm test` | 0 | 198 pass, 0 fail |
+| `npm run check:package` | 0 | 12 approved files |
+| `npm run check` | 0 | `npm test && npm run check:package` |
+| `npm pack --dry-run` | 0 | 12 files, allowlist clean |
+| `npm run test:e2e` | 0 | 4 checks pass: pi-version, checkout, headless-json, packed-archive |
+| `python3 -B scripts/test_verify.py` | 0 | 5 tests OK (no-op package; infrastructure-only) |
+| `scripts/verify.py doctor` | 0 | READY_TO_LAUNCH |
+
+**All 14 PTY journeys (real Pi 1.5.2, isolated loopback fixture)**
+
+| Journey | Exit | Result | Evidence run-id |
+| --- | --- | --- | --- |
+| `run chat` | 0 | PASS: 50% prefill + 20.0 tok/s, generation count, idle cleared | `20261120T194715-92db281a` |
+| `run cached` | 0 | PASS: follow-up turn, cache-aware prefill | `20261120T194719-ca878602` |
+| `run non-splash` | 0 | PASS: no stats, payload equals no-extension baseline | `20261120T194726-a5bf380d` |
+| `run switch` | 0 | PASS: stats clear on switch away, resume on switch back | `20261120T194732-68425dff` |
+| `run abort-prefill` | 0 | PASS: real aborted stop reason, UI cleared | `20261120T194741-ce2d06ce` |
+| `run abort-generation` | 0 | PASS: real aborted stop reason, UI cleared | `20261120T194744-84f842bd` |
+| `run reload` | 0 | PASS: reload completes, next request works | `20261120T195201-9edc375c` |
+| `run print` | 0 | PASS: ordinary output, no stats/discovery/enrichment | `20261120T195208-2417d943` |
+| `run json` | 0 | PASS: valid JSONL, no stats | `20261120T195210-3dc20626` |
+| `run rpc` | 0 | PASS: no stats, no protocol additions | `20261120T195213-350107c8` |
+| `run compact` | 0 | PASS: `/compact` summary stats via scoped fetch observer | `20261120T195215-feb8e0ce` |
+| `run tree` | 0 | PASS: `/tree` branch-summary stats via scoped fetch observer | `20261120T195226-2d1e2a92` |
+| `run tree-negative` | 0 | PASS: no-summary navigation, no inference, no stats | `20261120T195237-00a92e8a` |
+| `run packed` | 0 | PASS: npm pack + extract + manifest load, chat assertions | `20261120T195246-1fc99920` |
+
+**Real Splash qualification: NOT PERFORMED.** No real Splash backend, launcher, model, Apple Silicon
+inference, real cold/cache residency, non-default ports, or remote HTTP(S) target was exercised. The
+fixture is a local protocol stand-in. The following remain unverified and are recorded as such in
+every journey's `result.json`: real Splash, the launcher, tools, automatic/recovery compaction,
+remote/IPv6/auth failures, exact final transient counts/rates, narrow layout, and other-extension
+coexistence. Do not promote this to real-Splash or release qualification on the strength of the
+local harness; use `/maintain-verification-skill` to record any real-target evidence.
+
 ## Stand-in setup and unverified target work
 
 The stand-in used the **real installed Pi executable**, not fake Pi contexts or a container. It:
@@ -133,6 +183,8 @@ launcher versus direct saved/manual providers, real cold/cache behavior, non-def
 HTTP(S) when available. Exact launcher/server commands must be observed from that installed baseline,
 not guessed from this fixture. See specification §§12–14 and every feature's Gotchas.
 
-Do not promote the skill to product-qualified until the first real extension journey has artifacts.
-Do not promote the product to release-qualified until all required entries and acceptance gates have
-evidence. Use `/maintain-verification-skill` to update the map and this record as implementation lands.
+The first real extension journeys now have artifacts (see the final gate sweep above), so the skill
+is no longer blocked on implementation. It is still **not** product-qualified against real Splash,
+and the product is **not** release-qualified: those require the unverified real-target work listed
+above. Use `/maintain-verification-skill` to update the map and this record as real-target evidence
+lands.

@@ -1,36 +1,41 @@
 # Summary statistics
 
-**Status: `compact` and `tree` journeys are drivable and currently FAIL at the product stats assertions (summary stats not implemented); `tree-negative` (navigate without summary) PASSES end-to-end. Automatic/recovery compaction and explicit alternate-summary-model entries remain BLOCKED.**
+**Status: all three journeys PASS end-to-end — `compact`, `tree`, and `tree-negative` — against the
+loopback fixture with a real Pi 1.5.2 PTY. Summary statistics are implemented via the scoped
+`fetch` observer (S5, ADR 0002). Automatic/recovery compaction and explicit alternate-summary-model
+entries remain BLOCKED/unverified.**
 
-Covers SPECIFICATION.md §4.2–4.6 and §10.2. The extension must show the same above-editor
+Covers SPECIFICATION.md §4.2–4.6 and §10.2. The extension shows the same above-editor
 prefill/generation stats for `/compact` and `/tree` branch-summary streams, with Pi's
-compaction/branch-summary spinner preserved, and must never show summary stats for
+compaction/branch-summary spinner preserved, and never shows summary stats for
 navigate-without-summary.
 
-## Current implementation status (2026-11-20)
+## How it is implemented
 
-- `scripts/verify.py` drives all three journeys against the loopback fixture with a real
-  Pi 1.5.2 PTY: seeded multi-turn conversations (3 real user turns each), the exact
-  `/compact` command, and the `/tree` Session Tree with **type-to-search selection by the
-  displayed prompt text** (never coordinates), then the "Summarize" / "No summary" menu.
-- Summary streams are gated by the fixture exactly like chat (held prefill + generation),
-  and `keepRecentTokens: 200` is set in the isolated settings for `compact` so the small
-  seeded session actually issues a summary request (the default 20k makes small sessions
-  report "Nothing to compact (session too small)").
-- Summary journeys run with **persisted in-scratch sessions** (no `--no-session`); the
-  session file is kept as side-effect evidence in `files-after.json`.
-- Recorded outcomes on the current extension (S2–S4 chat stats only; no summary support):
-  - `run compact` → **FAIL**: "Expected summary prefill stats". The real summary HTTP
-    request fires and is captured as that request itself in `summary-request.json`
-    (`return_progress: null` — see the enrichment gotcha below), the Pi
-    `Compacting context...` spinner is captured in `summary-prefill.screen.txt`, and the
-    run fails at the first above-editor-stats assertion. Cleanup is clean and
-    `files-after.json` is written even on this failing run.
-  - `run tree` → **FAIL**: "Expected summary prefill stats". Type-to-search lands the
-    cursor on the target entry (`(1/1)` in `terminal.ansi`), the "Summarize" choice fires
-    the real branch-summary request, and the `Summarizing branch...` spinner is captured.
-  - `run tree-negative` → **PASS**: "No summary" navigates instantly, issues **no**
-    inference request, shows no stats, and the post-navigation chat turn works.
+Summary streams do not fire Pi's provider hooks (`before_provider_request`,
+`provider_stream_event`); only `before_provider_headers` does. S5 therefore added a **scoped global
+`fetch` observer** (`src/fetch-observer.ts`, see `docs/adr/0002-transport-coverage.md` in the
+repository) that is installed once per runtime in TUI mode. For an eligible owned summary request it
+enriches the body (`return_progress: true`, `stream_options.include_usage: true`) and observes the
+SSE response in a single pass, forwarding bytes, status, headers, streaming, backpressure, errors,
+and cancellation unchanged. The observer attributes each request to the foreground operation active
+at send time (compaction vs. branch) and requires the request's actual backend to be a verified owned
+Splash candidate via the identity/discovery modules, so chat requests pass through untouched and no
+double-counting occurs. The prefill and generation math and rendering are the same pure modules used
+for chat.
+
+Latest passing runs (loopback fixture, real Pi 1.5.2 PTY):
+
+- `run compact` → **PASS** — evidence `20261120T233705-5fdffba5`: the gated prefill snapshot shows
+  the above-editor stats (`Prefilling... ██████████░░░░░░░░░░  50% · 2s · 20.0 tok/s`) with Pi's
+  `Compacting context...` spinner preserved; the gated generation snapshot shows
+  `Generating... ≈5 tok`; the settled idle clears both the stats and the spinner.
+- `run tree` → **PASS** — evidence `20261120T233716-ea6c97c2`: the same gated summary assertions
+  with the `Summarizing branch...` spinner, then a `Branch summary` entry and a working
+  continuation turn.
+- `run tree-negative` → **PASS** — evidence `20261120T233727-261e8d26`: "No summary" navigates
+  instantly, issues **no** inference request, shows no stats, and the post-navigation chat turn
+  works.
 
 ## Manual driving
 
@@ -42,17 +47,18 @@ python3 .cursor/skills/verify-pi-splash-stats/scripts/verify.py run tree-negativ
 
 Each run records, under `.verification-evidence/<run-id>/`:
 
-- `summary-request.json` (compact/tree): the actual summary HTTP request — endpoint,
-  model, auth, streaming flag — captured from the loopback server log.
-- `summary-prefill.screen.txt` / `summary-generation.screen.txt` (compact/tree): the
-  gated phase snapshots, which must keep Pi's spinner (`Compacting context...` /
-  `Summarizing branch...`) and (once implemented) the above-editor stats.
+- `summary-request.json` (compact/tree): the actual summary HTTP request — endpoint, model, auth,
+  streaming flag, and `return_progress: true` (set by the observer) — captured from the loopback
+  server log.
+- `summary-prefill.screen.txt` / `summary-generation.screen.txt` (compact/tree): the gated phase
+  snapshots, which keep Pi's spinner (`Compacting context...` / `Summarizing branch...`) and the
+  above-editor stats.
+- `summary-idle.screen.txt` and `after-compact-*-idle.*`: the settled idle after the summary and the
+  usable post-summary chat turn (driven by the ordinary chat journey).
 - `tree-negative-idle.screen.txt`: no stats and no inference request after
   navigate-without-summary.
-- `*-turn-*-idle.*`: the seeded conversation turns; `after-*` snapshots: the usable
-  post-summary chat turn driven by the ordinary chat journey.
-- `terminal.ansi`, `actions.jsonl`, `http.jsonl`, `files-after.json` (includes the
-  persisted session file), `process-cleanup.json`.
+- `*-turn-*-idle.*`: the seeded conversation turns; `terminal.ansi`, `actions.jsonl`, `http.jsonl`,
+  `files-after.json` (includes the persisted session file), `process-cleanup.json`.
 
 ## What the harness asserts
 
@@ -81,43 +87,36 @@ Each run records, under `.verification-evidence/<run-id>/`:
   puts the target prompt back in the editor; the harness clears it (ctrl+U) before
   sending further commands, or the next paste appends to the restored text.
 - **Menu confirmations are explicit key presses.** "No summary" and "Summarize" are
-  chosen with Deliberate Enter/Down+Enter; a pasted slash command's `\r` can silently
+  chosen with deliberate Enter/Down+Enter; a pasted slash command's `\r` can silently
   confirm the menu and consume the command.
-- **Summary streams bypass the provider hooks** (see `docs/adr/0002-transport-coverage.md`
-  in the repository): `before_provider_request`/`after_provider_response`/
-  `provider_stream_event` do not fire for compaction or branch summaries in Pi 1.5.2, only
-  `before_provider_headers` does. The extension has no summary hook today (no header hook,
-  no stream hook), so it neither enriches summary requests nor observes summary samples;
-  S5 needs a scoped fetch observer for summary streams. Until it lands, `compact`/`tree`
-  fail at the stats assertions even though the request, spinner, and gating all work.
-- **The summary request body is not enriched by the extension.** The captured summary
-  POST has `return_progress: null` — `before_provider_request` does not fire for
-  summaries (ADR 0002), so the extension cannot add it. The
-  `stream_options.include_usage` in the body is added natively by pi-ai's
-  openai-completions transport, not by the extension. The extension has no header hook.
-- **S5 consequence — summary progress sourcing is undecided.** The loopback fixture emits
-  `prompt_progress` samples only when the payload has `return_progress: true`. Summary
-  payloads do not, so the fixture never emits summary progress and the `compact`/`tree`
-  prefill-stats assertions cannot pass until S5 decides how summary progress is sourced —
-  observer-side enrichment of the owned summary requests versus a fixture behavior change.
-  That is an S5 decision to be documented against SPECIFICATION.md §6/§10.2; the harness
-  records the red assertion as-is and does not paper over it.
+- **Summary streams bypass the provider hooks** (see
+  `docs/adr/0002-transport-coverage.md` in the repository):
+  `before_provider_request`/`provider_stream_event` do not fire for compaction or branch
+  summaries in Pi 1.5.2, only `before_provider_headers` does. The scoped `fetch` observer
+  is what sees these streams, enriches them, and observes their samples; without it the
+  extension neither enriches summary requests nor observes summary progress.
+- **Summary progress is observer-sourced.** Because the observer sets `return_progress: true` on
+  the owned summary request, the fixture (and a real backend) emits `prompt_progress` samples on the
+  summary stream; the same prefill/generation math and rendering as chat then apply. The live
+  `summary-request.json` from the passing runs records `return_progress: true` and
+  `stream_options: {"include_usage": true}`.
 - **Automatic compaction, recovery compaction, and explicit alternate-summary-model
   entries remain BLOCKED**: the fixture cannot drive an automatic overflow/recovery
   compaction deterministically, and the alternate-model entry requires a second provider
   model in the isolated `models.json`. Manual `/compact` and manual `/tree` summarization
   are the drivable entries.
-- The no-op harness package fails these journeys on the same stats assertions as the
-  chat journey; that red path is expected and recorded, never papered over.
+- The infrastructure-only `test_verify.py` stand-in package has no observer and no summary
+  support, so it does not drive these journeys; they are driven only by the real extension
+  package.
 
 ## Required vs optional evidence
 
 | Evidence | Requirement |
 | --- | --- |
 | Seeded multi-turn conversation (3 real turns, idle-settled) | Required |
-| Real summary HTTP request (endpoint/model/auth from server log) | Required for `compact`/`tree` |
+| Real summary HTTP request (endpoint/model/auth from server log, `return_progress: true`) | Required for `compact`/`tree` |
 | Gated prefill + generation snapshots with Pi spinner preserved | Required for `compact`/`tree` |
-| Above-editor prefill/generation stats during the summary stream | Required once implemented; the current honest failure point |
+| Above-editor prefill/generation stats during the summary stream | Required; passes via the scoped `fetch` observer |
 | No stats + no inference for navigate-without-summary | Required |
 | Usable post-summary chat response | Required |
 | Persisted session file kept as side-effect evidence | Required |

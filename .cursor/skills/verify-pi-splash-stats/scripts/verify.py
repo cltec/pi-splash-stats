@@ -28,7 +28,10 @@ ANSI = re.compile(r"\x1b\][^\x07]*(?:\x07|\x1b\\)|\x1b\[[0-?]*[ -/]*[@-~]")
 MODEL = "verify-model"
 SCENARIOS = ("chat", "cached", "non-splash", "switch", "abort-prefill",
              "abort-generation", "reload", "print", "json", "rpc", "compact", "tree",
-             "tree-negative")
+             "tree-negative", "packed")
+# Recorded as unverified for every scenario except the packed journey itself, which
+# packs the checkout and loads the extracted artifact through the Pi manifest.
+PACKED_UNVERIFIED = "packed package (verified by the packed journey)"
 # Summary journeys need real (persisted, in-scratch) sessions: /compact summarizes a
 # persisted conversation and /tree navigates one. They keep that session file as
 # side-effect evidence instead of treating it as an unexpected write.
@@ -75,8 +78,11 @@ def version(binary, env, cwd):
 def preflight(args):
     pi = shutil.which(args.pi)
     node = shutil.which("node")
+    npm = shutil.which("npm")
     if not pi or not node:
         raise Blocked("Install the approved Pi 1.5.2 and Node runtime before verification; no auto-install.")
+    if not npm:
+        raise Blocked("npm is required for the packed-package journey (npm pack); install the Node runtime.")
     if not shutil.which("fd") or not shutil.which("rg"):
         raise Blocked("Put preinstalled fd and rg on PATH; Pi TUI must not download managed tools during verification.")
     # Resolve the executable before changing HOME. Do not resolve a Pi shell wrapper to a different install.
@@ -368,6 +374,30 @@ def build_settings(scenario):
         # "Nothing to compact (session too small)" without any provider request.
         compaction["keepRecentTokens"] = 200
     return {"quietStartup": False, "compaction": compaction, "packages": []}
+
+
+def pack_and_extract(scratch, env):
+    """npm pack the checkout and extract the tarball under scratch; return the package dir.
+
+    Exercises the published bytes (the npm allowlist) rather than the checkout source,
+    so the packed journey covers the exact artifact a user would install.
+    """
+    packed = scratch / "packed"
+    (packed / "out").mkdir(parents=True)
+    pack = subprocess.run(["npm", "pack", "--pack-destination", str(packed / "out")],
+                          cwd=ROOT, env=env, capture_output=True, text=True, timeout=180)
+    require(pack.returncode == 0,
+            f"npm pack failed: {pack.stderr.strip() or pack.stdout.strip()}")
+    tarballs = [line.strip() for line in pack.stdout.splitlines() if line.strip().endswith(".tgz")]
+    require(tarballs, f"npm pack reported no tarball: {pack.stdout.strip()}")
+    tarball = packed / "out" / tarballs[-1]
+    extract = subprocess.run(["tar", "-xzf", str(tarball), "-C", str(packed)],
+                             env=env, capture_output=True, text=True, timeout=60)
+    require(extract.returncode == 0, f"tar extract failed: {extract.stderr.strip()}")
+    package = packed / "package"
+    require((package / "package.json").is_file(), "Extracted package is missing package.json")
+    require((package / "src" / "index.ts").is_file(), "Extracted package is missing src/index.ts")
+    return package
 
 
 def tree_cursor_on(screen, target):
@@ -734,7 +764,7 @@ def main():
     report = {"command": args.command, "scenario": args.scenario, "coverage": [],
               "unverified": ["real Splash", "launcher", "tools", "summaries", "automatic/recovery compaction",
                              "remote/IPv6/auth failures", "exact final transient counts/rates", "narrow layout",
-                             "other-extension coexistence", "packed package unless --package supplied"]}
+                             "other-extension coexistence", PACKED_UNVERIFIED]}
     try:
         info = preflight(args)
         dump(evidence / "environment.json", info)
@@ -743,6 +773,9 @@ def main():
         else:
             scenario = "non-splash" if args.command == "self-test" else args.scenario
             report["scenario"] = scenario
+            packed = scenario == "packed"
+            if packed:
+                report["unverified"].remove(PACKED_UNVERIFIED)
             scratch = Path(tempfile.mkdtemp(prefix="pi-splash-verify-"))
             for p in ("home", "tmp", "agent", "work"):
                 (scratch / p).mkdir()
@@ -759,14 +792,20 @@ def main():
                                 "apiKey": "verification-only", "authHeader": True, "models": [model]}
                          for name, prefix in (("verify-local", "/splash"), ("splash", "/other"))}
             dump(scratch / "agent/models.json", {"providers": providers})
-            dump(scratch / "agent/settings.json", build_settings(scenario))
+            settings = build_settings(scenario)
+            if packed:
+                # Load the extracted npm artifact through the Pi manifest (settings
+                # packages entry), not --extension, so this journey covers the packaged bytes.
+                settings["packages"] = [str(pack_and_extract(scratch, env))]
+            dump(scratch / "agent/settings.json", settings)
             selected = "splash" if scenario == "non-splash" else "verify-local"
             session_flags = [] if scenario in SUMMARY_SCENARIOS else ["--no-session"]
-            command = [info["pi"], "--offline", "--no-extensions", "--no-mcp", "--no-skills",
-                       "--no-prompt-templates", "--no-themes", "--no-context-files", "--no-approve",
-                       *session_flags, "--no-tools", "--provider", selected, "--model", MODEL,
-                       "--thinking", "off", "--tui-mode", "regular"]
-            if args.command != "self-test":
+            command = [info["pi"], "--offline", *([] if packed else ["--no-extensions"]),
+                       "--no-mcp", "--no-skills", "--no-prompt-templates", "--no-themes",
+                       "--no-context-files", "--no-approve", *session_flags, "--no-tools",
+                       "--provider", selected, "--model", MODEL, "--thinking", "off",
+                       "--tui-mode", "regular"]
+            if args.command != "self-test" and not packed:
                 command += ["--extension", str(args.package.resolve())]
             before_files = observe_files(scratch)
             dump(evidence / "files-before.json", before_files)

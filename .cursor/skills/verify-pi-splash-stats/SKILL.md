@@ -8,11 +8,11 @@ description: Verify pi-splash-stats in the real Pi terminal UI and non-TUI modes
 Read [the feature map](features/README.md), then the relevant journey. Acceptance authority is
 `SPECIFICATION.md` at the repository root. This is a how-to for an agent, not an implementation plan.
 
-**Current boundary:** the initial checkout contains only the proposed specification. There is no
-`package.json`, `src/index.ts`, template checkout, or project test suite. Product verification is
-**BLOCKED**, not passed. The bundled harness has been exercised against installed real Pi and a
-local protocol fixture; that does not qualify the unimplemented extension or real Splash.
-See [qualification status](references/qualification-status.md).
+**Current boundary:** the extension is implemented and covered by the bundled harness (unit/wiring
+tests, the real-Pi PTY journeys, and the packed-package journey). A green harness run is bounded
+integration evidence against a local protocol fixture; it does **not** qualify real Splash, the
+launcher, auto/recovery compaction, remote/IPv6/auth failure, exact transient counts, narrow
+layout, or other-extension coexistence. See [qualification status](references/qualification-status.md).
 
 ## Launch
 
@@ -28,10 +28,9 @@ V=.cursor/skills/verify-pi-splash-stats/scripts/verify.py
 "$V" run chat
 ```
 
-There is no build command in the specified template. Once implemented, TypeScript is loaded
-through the package directory and its `pi.extensions: ["./src/index.ts"]` manifest, not a direct
-source-file bypass. If dependencies are missing, follow the implemented repository's lockfile
-and approved setup instructions before running; verification never installs or fetches packages.
+There is no build step: TypeScript is loaded through the package directory and its
+`pi.extensions: ["./src/index.ts"]` manifest (or a direct source-file `-e` entry in the harness),
+not compiled or fetched. Verification never installs or fetches packages.
 
 Every `run` launches its own loopback server on an OS-assigned port, temporary HOME/config/work
 directories, and a **real Pi PTY** at 120×40 in regular terminal mode (or a pipe for non-TUI modes).
@@ -83,7 +82,12 @@ Exit/status meanings:
 "$V" run print
 "$V" run json
 "$V" run rpc
+"$V" run packed
 ```
+
+`packed` runs `npm pack`, extracts the tarball, and loads the artifact through the Pi manifest
+(settings `packages` entry) instead of `-e`, then drives the same `chat` assertions—covering the
+exact bytes a user would install. See [the package journey](features/lifecycle-and-modes.md).
 
 The PTY sends actual editor text + Enter, `Escape`, `/model splash/verify-model`,
 `/model verify-local/verify-model`, `/reload`, and `/debug`. It never calls extension setters
@@ -101,7 +105,7 @@ the entire inference JSON body hash must match. The baseline is evidence, not a 
 Non-TUI scenarios require valid ordinary output, no stats, no discovery, and no enrichment.
 They cannot prove layout or complete equality of all protocol records/headers.
 
-For the implemented project's own checks, preserve the specification's commands:
+For the project's own offline checks, preserve the specification's commands:
 ```sh
 npm test
 npm run check:package
@@ -109,10 +113,9 @@ npm run check
 npm run test:e2e
 npm pack --dry-run
 ```
-They do not exist in the initial checkout. Capture stdout/stderr and exit codes when they do.
-`npm test` must stay offline and must not invoke this real-Pi/network harness.
-Do not use `npx`, publish, tag, or add runtime dependencies during verification.
-For packed-source verification, see [the package journey](features/lifecycle-and-modes.md).
+Capture stdout/stderr and exit codes. `npm test` must stay offline and must not invoke this
+real-Pi/network harness. Do not use `npx`, publish, tag, or add runtime dependencies during
+verification.
 
 ## Evidence
 
@@ -172,10 +175,10 @@ All shipped scripts are executable. Run from repo root:
 # Harness regression suite: real Pi + disposable no-op package, positive silence and negative chat assertions.
 python3 -B .cursor/skills/verify-pi-splash-stats/scripts/test_verify.py
 
-# Exercise an already extracted packed package through its manifest.
-"$V" run chat --package "$PACKED_PACKAGE"
+# Exercise the packed npm artifact (npm pack + extract + load via the Pi manifest).
+"$V" run packed
 ```
-`PACKED_PACKAGE` is assigned by the concrete packaging recipe in the feature map.
+
 Both harness self-tests are infrastructure-only, never release evidence. The regression suite
 also records a summary under `.verification-evidence/harness-tests-*.json`.
 
