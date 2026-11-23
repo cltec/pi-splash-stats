@@ -36,7 +36,7 @@ This extension is inspired by [pi-llama-cpp-stats](https://www.npmjs.com/package
 | Requirement | Detail |
 | --- | --- |
 | Node.js | 22.18 or newer. CI runs Node 22 and 24 on Linux with the same commands; local verification here uses Node 22. |
-| Pi | 1.5.2 baseline for the e2e checks, pinned in `scripts/quality.json`. |
+| Pi | 1.6.0 baseline for the e2e checks, pinned in `scripts/quality.json`. |
 | Platform | Linux is tested in CI. Other operating systems are not currently verified. |
 | Dependencies | None. `npm install` is not required. E2E additionally needs a Pi binary and a system `tar`. |
 | Network | `npm test` and `npm run check` are offline. At runtime the extension makes a single bounded, cached discovery request to the Splash backend to verify provider identity; it makes no other network calls. |

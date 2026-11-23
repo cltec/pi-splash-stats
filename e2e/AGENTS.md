@@ -18,7 +18,7 @@ Run with `npm run test:e2e`. By default the runner packs the current tree; do no
 ## Environment
 
 - Node.js 22.18+. CI runs Node 22 and 24 on Linux with the same commands; local verification here uses Node 22.
-- Pi 1.5.2 baseline from `scripts/quality.json`.
+- Pi 1.6.0 baseline from `scripts/quality.json`.
 - `PI_BIN` must be an absolute path when set; otherwise the runner uses `pi` from `PATH`. The selected binary's reported version must equal the baseline unless `PI_VERSION` sets the exact stable version.
 - `PI_BIN` and `PI_VERSION` are for temporary compatibility experiments. Adopting a version means updating `scripts/quality.json` and the docs, not relying on the environment variables.
 - CI's initial pinned Pi install requires network. E2E test execution is offline.

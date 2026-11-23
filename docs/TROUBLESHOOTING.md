@@ -42,7 +42,7 @@ PI_BIN=/absolute/path/to/pi npm run test:e2e
 
 **Symptom:** the binary exists but the extension API is missing or behaves differently.
 
-Check the version against `scripts/quality.json` (1.5.2 for this project). An absolute `PI_BIN` selects the binary, and its version must equal the baseline; `PI_VERSION` can set the exact stable version only for a temporary experiment. CI installs that version into a temporary prefix outside the checkout; a random global Pi may not match.
+Check the version against `scripts/quality.json` (1.6.0 for this project). An absolute `PI_BIN` selects the binary, and its version must equal the baseline; `PI_VERSION` can set the exact stable version only for a temporary experiment. CI installs that version into a temporary prefix outside the checkout; a random global Pi may not match.
 
 **Symptom:** the extension entry point is discovered from the checkout but not from the packed archive.
 
