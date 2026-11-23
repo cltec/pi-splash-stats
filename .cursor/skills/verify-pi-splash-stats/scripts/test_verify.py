@@ -76,7 +76,7 @@ class HarnessTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="verifier-noop-package-") as tmp:
             package = Path(tmp)
             (package / "src").mkdir()
-            (package / "package.json").write_text(json.dumps({"name": "pi-splash-stats", "version": "0.0.0",
+            (package / "package.json").write_text(json.dumps({"name": "@cltec/pi-splash-stats", "version": "0.0.0",
                 "private": True, "type": "module", "pi": {"extensions": ["./src/index.ts"]}}))
             (package / "src/index.ts").write_text("export default function () {}\n")
             code, report, _ = self.invoke("self-test")

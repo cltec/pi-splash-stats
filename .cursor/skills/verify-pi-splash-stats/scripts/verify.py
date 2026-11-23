@@ -106,7 +106,7 @@ def preflight(args):
         if not manifest_path.is_file():
             raise Blocked(f"No {manifest_path}: this checkout is specification-only; implement the extension first.")
         manifest = json.loads(manifest_path.read_text())
-        require(manifest.get("name") == "pi-splash-stats", "Unexpected package identity")
+        require(manifest.get("name") == "@cltec/pi-splash-stats", "Unexpected package identity")
         require(manifest.get("pi", {}).get("extensions") == ["./src/index.ts"],
                 "Expected package manifest pi.extensions = ['./src/index.ts']")
         if not (package / "src/index.ts").is_file():
@@ -213,9 +213,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     emit(prompt_progress={"total": 100, "cache": 20, "processed": processed, "time_ms": elapsed})
                     time.sleep(.2)
             gate("prefill")
+            # The first output establishes the estimator baseline. Later batches
+            # span >=500 ms so live throughput is observable before final timings.
             for text in ("Verification ", "response ", "complete."):
                 emit({"content": text})
-                time.sleep(.2)
+                time.sleep(.65)
             gate("generation")
             # Scaffolding (abort-generation only): the driver wrote Escape before
             # releasing this gate; hold the final frames so the abort deterministically
@@ -527,6 +529,8 @@ def run_summary(terminal, server, evidence, scenario, journey):
         screen = terminal.snapshot("summary-generation")
         require(spinner in screen, "Pi summary spinner missing from generation snapshot")
         require("Generating" in screen and "≈" in screen, "Expected summary generation stats")
+        require(re.search(r"Generating(?:\.\.\.)? ≈\d+(?:\.\d+)?[kM]? tok · \(≈\d+(?:\.\d+)? tok/s\)", screen),
+                "Expected parenthesized approximate summary generation rate")
         require("Prefilling" not in screen, "Prefill remained during summary generation")
         stream["release_generation"].set()
         terminal.wait(stream["done"].is_set, "summary completion")
@@ -603,6 +607,8 @@ def run_tui(command, env, scratch, evidence, server, scenario):
                     no_stats(screen)
                 else:
                     require("Generating" in screen and "≈" in screen, "Expected approximate generation count")
+                    require(re.search(r"Generating(?:\.\.\.)? ≈\d+(?:\.\d+)?[kM]? tok · \(≈\d+(?:\.\d+)? tok/s\)", screen),
+                            "Expected parenthesized approximate generation rate")
                     require("Prefilling" not in screen, "Prefill remained during generation")
                 if abort == "generation":
                     with (evidence / "actions.jsonl").open("a") as f:
