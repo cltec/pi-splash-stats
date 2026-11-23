@@ -1,0 +1,78 @@
+name: Release merged version
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+# GitHub concurrency is not a durable queue: maintainers must release one version at a time.
+concurrency:
+  group: auto-release-${{ github.repository }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Compare exact push versions and validate release metadata
+        id: plan
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: node scripts/auto-release.mjs plan
+      - uses: actions/setup-node@v4
+        if: steps.plan.outputs.action == 'release'
+        with:
+          node-version: 22
+      - name: Offline checks on Node 22
+        if: steps.plan.outputs.action == 'release'
+        run: npm run check
+      - uses: actions/setup-node@v4
+        if: steps.plan.outputs.action == 'release'
+        with:
+          node-version: 24
+      - name: Offline checks on Node 24
+        if: steps.plan.outputs.action == 'release'
+        run: npm run check
+      - name: Install pinned Pi outside checkout
+        if: steps.plan.outputs.action == 'release'
+        env:
+          PI_VERSION: ${{ steps.plan.outputs.piVersion }}
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pi-host" --ignore-scripts --no-audit --no-fund "@earendil-works/pi-coding-agent@$PI_VERSION"
+          echo "PI_BIN=$RUNNER_TEMP/pi-host/node_modules/.bin/pi" >> "$GITHUB_ENV"
+      - name: Pinned Pi smoke
+        if: steps.plan.outputs.action == 'release'
+        run: npm run test:e2e
+      - name: Record exact verified commit
+        if: steps.plan.outputs.action == 'release'
+        run: |
+          node --input-type=module <<'JS'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+          const commit = execFileSync('git', ['rev-parse', 'HEAD'], {encoding:'utf8'}).trim();
+          if (commit !== process.env.GITHUB_SHA) throw new Error('Checkout changed');
+          writeFileSync('artifacts/auto-release.json', JSON.stringify({commit, offline22:true, offline24:true, smoke:JSON.parse(readFileSync('artifacts/e2e-result.json'))}));
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.plan.outputs.action == 'release'
+        with:
+          name: auto-release-evidence
+          path: artifacts/*.json
+          retention-days: 7
+      - name: Verify evidence, preserve immutable tag, explicitly dispatch Release
+        if: steps.plan.outputs.action == 'release'
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/auto-release.mjs complete
