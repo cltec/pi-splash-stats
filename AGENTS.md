@@ -19,7 +19,7 @@ Source: `package.json` and the repository scripts. No lint, typecheck, or build 
 
 - `npm test` and `npm run check:package` need no dependency installation.
 - Node.js 22.18+ is required. CI runs the same checks on Node 22 and 24 on Linux; local runs in this repository use Node 22.
-- Pi 1.5.2 is the baseline in `scripts/quality.json`. E2E uses `pi` from `PATH`, or `PI_BIN` as an absolute path. The selected binary's version must equal the baseline unless `PI_VERSION` sets the exact stable version. Both variables are for temporary compatibility experiments; adopting a version means updating `scripts/quality.json` and the docs.
+- Pi 1.6.0 is the baseline in `scripts/quality.json`. E2E uses `pi` from `PATH`, or `PI_BIN` as an absolute path. The selected binary's version must equal the baseline unless `PI_VERSION` sets the exact stable version. Both variables are for temporary compatibility experiments; adopting a version means updating `scripts/quality.json` and the docs.
 - CI's initial pinned Pi install requires network. Test execution itself stays offline.
 - `npm run check` is `npm test && npm run check:package`; it does not run e2e.
 

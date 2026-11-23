@@ -12,7 +12,7 @@ Thanks for improving `pi-splash-stats`. The extension is intentionally small; ke
 ## Requirements
 
 - Node.js 22.18 or newer for development and the tests. CI runs Node 22 and 24 on Linux with the same commands; local verification here uses Node 22.
-- Pi 1.5.2 for the e2e checks, matching `scripts/quality.json`. The e2e runner uses `pi` from `PATH` by default; set `PI_BIN` to an absolute path to select another binary. Its version must equal the baseline unless `PI_VERSION` sets the exact stable version. Both variables are for temporary compatibility experiments; update `scripts/quality.json` to adopt a new baseline.
+- Pi 1.6.0 for the e2e checks, matching `scripts/quality.json`. The e2e runner uses `pi` from `PATH` by default; set `PI_BIN` to an absolute path to select another binary. Its version must equal the baseline unless `PI_VERSION` sets the exact stable version. Both variables are for temporary compatibility experiments; update `scripts/quality.json` to adopt a new baseline.
 - Linux is the tested platform. Other operating systems are unverified.
 - No dependency installation is required for the starter. Pi loads the TypeScript itself. CI installs the pinned Pi version first, which requires network; the checks themselves are offline.
 

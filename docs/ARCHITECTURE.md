@@ -197,7 +197,7 @@ See [`../SECURITY.md`](../SECURITY.md).
 ## Compatibility and quality
 
 - Node.js 22.18+ is required for development and the test runner.
-- Pi 1.5.2 is the baseline in `scripts/quality.json`; CI installs that version into a temporary prefix
+- Pi 1.6.0 is the baseline in `scripts/quality.json`; CI installs that version into a temporary prefix
   outside the checkout, which requires network. Test execution itself is offline.
 - CI runs the checks on Node 22 and 24 on Linux; local verification here uses Node 22. Other
   platforms are unverified.

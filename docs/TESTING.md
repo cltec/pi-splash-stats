@@ -8,7 +8,7 @@ The project uses layered checks: fast offline tests for the adapter and tooling 
 | --- | --- |
 | Node.js | 22.18 or newer. CI runs Node 22 and 24 on Linux with the same commands; local verification here uses Node 22. |
 | Platform | Linux. Other operating systems are not currently verified. |
-| Pi | 1.5.2 baseline for e2e, pinned in `scripts/quality.json`. |
+| Pi | 1.6.0 baseline for e2e, pinned in `scripts/quality.json`. |
 | Dependencies | None. Do not run `npm install`. E2E also needs a Pi binary and a system `tar` (the packed listing uses portable `tar -tf`, GNU- and BSD-compatible). |
 | Network | `npm test` and `npm run check` are offline. E2E execution is offline. CI's initial pinned Pi install requires network. |
 

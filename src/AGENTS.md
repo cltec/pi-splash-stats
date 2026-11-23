@@ -18,7 +18,7 @@ Keep the adapter thin: it reads Pi inputs, calls pure modules, and chooses an ou
 ## Setup and environment
 
 - Node.js 22.18+ for development and tests.
-- Pi 1.5.2 is the e2e baseline; the extension itself targets current Pi 1.5+ APIs.
+- Pi 1.6.0 is the e2e baseline; the extension itself targets current Pi 1.5+ APIs.
 - No dependency installation is required.
 - Pi supplies the host package at runtime. Do not install it in this repository.
 - There is no lint, typecheck, or build. Node strips types; it does not check them.

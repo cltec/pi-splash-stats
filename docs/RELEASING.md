@@ -19,7 +19,7 @@ Complete the package metadata first. At minimum:
 - Set the real package `name`, `version`, `description`, and repository metadata.
 - Keep `repository` as the canonical GitHub URL for the repository that runs this workflow.
 - Change `"private": true` to `"private": false` only when you are ready to publish.
-- Keep the Pi baseline in `scripts/quality.json`; this project pins `1.5.2`.
+- Keep the Pi baseline in `scripts/quality.json`; this project pins `1.6.0`.
 - Add a changelog heading for the exact version, for example `## [0.2.0]`. The release script rejects a missing or mismatched heading.
 
 The package allowlist is checked by `npm run check`. Do not widen it to make development files publishable.
