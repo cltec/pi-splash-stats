@@ -251,7 +251,10 @@ Replace the estimate with `usage.completion_tokens` when available; otherwise us
 
 Splash's inspected stream does not expose an exact cumulative token count on every output chunk. The extension MUST NOT label chunk counts or character-based rates as exact generation throughput.
 
-- Show a live approximate count, not a fabricated exact live tok/s number.
+- Show a live approximate count followed, when available, by a parenthesized approximate generation rate: `Generating... ≈123 tok (≈45.6 tok/s)`. Positive rates use one decimal place. Drop the rate when terminal width is insufficient.
+- Estimate per request using a monotonic clock. The first nonempty output batch establishes both the time and estimated-token baseline; exclude time-to-first-output and that entire batch from the rate. Use `(current estimated tokens - baseline estimated tokens) / elapsed seconds` after at least 500 ms and a later nonempty output batch. Use the §7.4 estimator for text, reasoning, and tool-argument fragments, not one token per chunk.
+- Use the cumulative window since that baseline, without additional smoothing; pauses between observations are included. Recompute on stream observations, not an idle timer. Very short responses, nonpositive deltas, invalid clocks, or nonfinite rates remain count-only. Character-based tokenization and burst delivery make this indicative, not a backend measurement.
+- Count and rate approximation markers are independent. Valid final counts replace estimated counts; valid authoritative rates replace estimated rates. At finalization, do not fall back to the live estimated rate when authoritative throughput is unavailable.
 - When valid final timings arrive, use `timings.predicted_per_second` for generation throughput and `prompt_per_second` for prompt throughput.
 - Do not recompute authoritative rates as full count divided by duration: Splash excludes cached prompt tokens and the entire first speculative emission respectively.
 - A zero final rate means unavailable, including a response completed in one emission. Omit the rate rather than displaying it as measured zero-speed generation.
@@ -280,6 +283,7 @@ Illustrative displays, not measured examples:
 ```text
 Prefilling... ████████░░░░░░░░░░░░  40% · 30s · 1234.5 tok/s
 Generating... ≈1.2k tok
+Generating... ≈1.2k tok (≈45.6 tok/s)
 Generating... 1.2k tok · 82.4 tok/s
 ```
 
@@ -491,7 +495,7 @@ Record exact versions, OS, scenarios, and results. Linux fake-server CI does not
 | AC-02 | With a reachable compatible server, `splash pi ...` automatically displays statistics without enabling a command. |
 | AC-03 | First-request prefill works when bounded discovery completes successfully. |
 | AC-04 | Uncached progress drives percentage/rate/ETA; cached tokens do not inflate throughput. |
-| AC-05 | Chat, tool-follow-up, compaction, and branch-summary generation show transient counts; estimates are visibly approximate. |
+| AC-05 | Chat, tool-follow-up, compaction, and branch-summary generation show transient counts and, after sufficient observations, a parenthesized approximate rate (§7.5); count/rate markers are independent, startup and narrow layouts remain count-only, and request-local timing excludes first-output latency/batch. |
 | AC-06 | Valid exact final counts replace estimates; authoritative final rates are not recomputed using incorrect token totals. |
 | AC-07 | A non-Splash model shows no extension UI, including when launched through Splash or sharing a model ID. |
 | AC-08 | A llama.cpp endpoint's compatible timing fields do not activate this extension. |

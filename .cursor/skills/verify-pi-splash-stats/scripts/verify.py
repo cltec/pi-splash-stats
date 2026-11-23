@@ -529,7 +529,7 @@ def run_summary(terminal, server, evidence, scenario, journey):
         screen = terminal.snapshot("summary-generation")
         require(spinner in screen, "Pi summary spinner missing from generation snapshot")
         require("Generating" in screen and "≈" in screen, "Expected summary generation stats")
-        require(re.search(r"Generating(?:\.\.\.)? ≈\d+(?:\.\d+)?[kM]? tok · \(≈\d+(?:\.\d+)? tok/s\)", screen),
+        require(re.search(r"Generating(?:\.\.\.)? ≈\d+(?:\.\d+)?[kM]? tok \(≈\d+\.\d tok/s\)", screen),
                 "Expected parenthesized approximate summary generation rate")
         require("Prefilling" not in screen, "Prefill remained during summary generation")
         stream["release_generation"].set()
@@ -607,7 +607,7 @@ def run_tui(command, env, scratch, evidence, server, scenario):
                     no_stats(screen)
                 else:
                     require("Generating" in screen and "≈" in screen, "Expected approximate generation count")
-                    require(re.search(r"Generating(?:\.\.\.)? ≈\d+(?:\.\d+)?[kM]? tok · \(≈\d+(?:\.\d+)? tok/s\)", screen),
+                    require(re.search(r"Generating(?:\.\.\.)? ≈\d+(?:\.\d+)?[kM]? tok \(≈\d+\.\d tok/s\)", screen),
                             "Expected parenthesized approximate generation rate")
                     require("Prefilling" not in screen, "Prefill remained during generation")
                 if abort == "generation":

@@ -3,6 +3,12 @@
 Notable changes to this project. Entries are grouped by release; the latest is listed first.
 This repository follows [Keep a Changelog](https://keepachangelog.com/) for entry style.
 
+## [Unreleased]
+
+### Added
+
+- Approximate live generation speed alongside the token count in chat, tool follow-ups, compaction, and branch summaries. The cumulative estimate excludes first-output latency and the first batch, requires at least 500 ms, and falls back to count-only before sufficient observations or on narrow terminals. Final Splash throughput remains authoritative.
+
 ## [0.1.1]
 
 ### Changed

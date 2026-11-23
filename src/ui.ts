@@ -15,14 +15,22 @@
 export const WIDGET_KEY = "pi-splash-stats";
 export const COALESCE_MS = 100;
 
+export interface WidgetComponent {
+  render(width: number): string[];
+  invalidate(): void;
+}
+
+export type WidgetContent = string[] | (() => WidgetComponent) | undefined;
+
 export interface UiAdapter {
   setWorkingMessage(message?: string): void;
-  setWidget(key: string, content: string[] | undefined): void;
+  setWidget(key: string, content: WidgetContent): void;
 }
 
 interface PendingRender {
   phase: "prefill" | "generation";
   line: string;
+  renderAtWidth?: (width: number) => string;
   /** "working" = chat prefill (working message); "widget" = summary prefill + generation. */
   target: "working" | "widget";
 }
@@ -77,7 +85,7 @@ export class UiController {
    * the 100 ms bound (SPEC 10.3). For chat the transition also restores the
    * working message; for summaries it is a no-op (we never owned it).
    */
-  showGeneration(line: string | null): void {
+  showGeneration(line: string | null, renderAtWidth?: (width: number) => string): void {
     if (this.disposed) return;
     if (line === null) {
       this.clearAll();
@@ -90,7 +98,7 @@ export class UiController {
       this.restoreWorkingMessage();
     }
     this.phase = "generation";
-    this.schedule({ phase: "generation", line, target: "widget" }, transition);
+    this.schedule({ phase: "generation", line, target: "widget", renderAtWidth }, transition);
   }
 
   /** Clear only this extension's owned UI (SPEC 8.3). */
@@ -163,7 +171,19 @@ export class UiController {
     } else {
       if (render.line === this.lastWidget) return;
       try {
-        this.ui.setWidget(WIDGET_KEY, [render.line]);
+        const renderAtWidth = render.renderAtWidth;
+        this.ui.setWidget(WIDGET_KEY, renderAtWidth ? () => ({
+          // Stateless: reformat for every supplied width, including terminal resize.
+          render: (width: number) => {
+            try {
+              return [renderAtWidth(width)];
+            } catch {
+              this.widgetDisabled = true;
+              return [];
+            }
+          },
+          invalidate() {},
+        }) : [render.line]);
         this.lastWidget = render.line;
       } catch {
         this.widgetDisabled = true;

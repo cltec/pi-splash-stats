@@ -28,7 +28,7 @@ Node strips TypeScript types for the tests; it does not typecheck. There is no l
 
 ## Adapter wiring
 
-The offline `npm test` suite is **198 tests**: pure-module tests for each behavior module (below),
+The offline `npm test` suite includes pure-module tests for each behavior module (below),
 a wiring suite, and tooling-helper tests. The behavior lives in pure modules, each tested directly
 without Pi:
 
@@ -57,6 +57,12 @@ requests and stream events through the real adapter and assert:
   clears the display without an unhandled rejection; a failed discovery leaves the request unenriched.
 
 Wiring tests must not launch Pi. That is the e2e and verification-harness layers' job.
+
+## Live generation rate coverage
+
+`test/generation-rate.test.ts` uses explicit timestamps to cover the 500 ms floor, first-batch exclusion, pauses, reasoning/tool fragments, invalid clocks, independent approximation markers and width fallback. Wiring tests inject a monotonic clock and verify live rendering and request reset. Final authoritative throughput remains covered separately from the estimate.
+
+The real-Pi fixture spaces output batches 650 ms apart; chat and summary journeys require a parenthesized one-decimal approximate rate in the generation snapshot. Non-TUI journeys still require complete statistics silence. This is bounded local-fixture evidence, not measured real-Splash throughput; final transient timing frames may be cleaned up before a snapshot.
 
 ## Tooling helpers
 

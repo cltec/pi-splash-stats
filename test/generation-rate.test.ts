@@ -36,8 +36,8 @@ test("rate omits nonpositive deltas and invalid initial clock; authoritative fie
 });
 
 test("count and rate approximation markers are independent, with count-only width fallback", () => {
-  assert.equal(generationLine({ count: 7, exact: false, rate: 10, rateExact: false }), "Generating... ≈7 tok · ≈10.0 tok/s");
-  assert.equal(generationLine({ count: 7, exact: true, rate: 10, rateExact: false }), "Generating... 7 tok · ≈10.0 tok/s");
+  assert.equal(generationLine({ count: 7, exact: false, rate: 10, rateExact: false }), "Generating... ≈7 tok (≈10.0 tok/s)");
+  assert.equal(generationLine({ count: 7, exact: true, rate: 10, rateExact: false }), "Generating... 7 tok (≈10.0 tok/s)");
   assert.equal(generationLine({ count: 7, exact: false, rate: 10, rateExact: true }), "Generating... ≈7 tok · 10.0 tok/s");
   assert.equal(generationLine({ count: 7, exact: false, rate: 10, rateExact: false }, 25), "Generating... ≈7 tok");
 });

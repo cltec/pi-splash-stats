@@ -171,13 +171,15 @@ export default function extension(pi: ExtensionAPI, now: () => number = () => pe
       // Final exact counts/rates may appear on the active line before cleanup.
       if (request.generationStarted) {
         const gen = request.generation;
-        ui.showGeneration(generationLine({ count: estimateTokens(gen), exact: gen.exact !== null, rate: gen.genRate }));
+        const display = { count: estimateTokens(gen), exact: gen.exact !== null, rate: gen.genRate };
+        ui.showGeneration(generationLine(display), width => generationLine(display, width));
       }
       return true;
     }
     if (request.generationStarted) {
       const gen = request.generation;
-      ui.showGeneration(generationLine({ count: estimateTokens(gen), exact: gen.exact !== null, rate: estimateGenerationRate(gen, nowMs), rateExact: false }));
+      const display = { count: estimateTokens(gen), exact: gen.exact !== null, rate: estimateGenerationRate(gen, nowMs), rateExact: false };
+      ui.showGeneration(generationLine(display), width => generationLine(display, width));
     }
     return false;
   };

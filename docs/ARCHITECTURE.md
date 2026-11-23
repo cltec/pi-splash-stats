@@ -112,6 +112,10 @@ flowchart TB
 4. **Render (TUI only).** The `UiController` owns a working message and a widget, keyed to the
    extension, and renders the formatted line. Rendering happens only when `ctx.mode === "tui"`.
 
+## Live generation estimate
+
+The shared chat/summary reducer timestamps output with `performance.now()` (injectable in wiring tests). Each request stores the first nonempty batch's time and estimated count. After a later batch and 500 ms, rate is the estimated-count delta divided by elapsed seconds, excluding the first batch and time-to-first-output. The cumulative window includes pauses between observations, with no smoothing or idle timer. Estimates use the existing character/chunk heuristic across text, reasoning and tool arguments; burst delivery and tokenization limit accuracy. Nonpositive/nonfinite rates are omitted. Count and rate have independent approximation markers; final native timings replace the estimate, with zero final throughput unavailable. Rendering drops the live rate before the count on narrow terminals.
+
 ## Mode gating
 
 All rendering is gated on `ctx.mode === "tui"` — not `ctx.hasUI` alone. RPC, print, and JSON modes

@@ -101,7 +101,7 @@ export function generationLine(display: GenerationDisplay, width: number = Numbe
   const rate = formatRate(display.rate);
   const count = display.exact ? formatCount(display.count) : "≈" + formatCount(display.count);
   let line = "Generating... " + count + " tok";
-  if (rate) line += " · " + (display.rateExact === false ? "≈" : "") + rate;
+  if (rate) line += display.rateExact === false ? " (≈" + rate + ")" : " · " + rate;
   if (line.length > width && rate) line = "Generating... " + count + " tok";
   return line;
 }

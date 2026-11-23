@@ -57,7 +57,8 @@ function makeCtx(mode: string, model?: object) {
       setWorkingMessage(message?: string) {
         uiCalls.push(["working", message]);
       },
-      setWidget(key: string, content?: string[]) {
+      setWidget(key: string, value?: string[] | (() => { render(width: number): string[] })) {
+        const content = typeof value === "function" ? value().render(120) : value;
         uiCalls.push(["widget", key, content]);
       },
     },
