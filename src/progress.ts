@@ -159,6 +159,8 @@ export function applyProgress(state: PrefillState, sample: ProgressSample): Pref
 export interface GenerationState {
   /** Nonempty output chunks (text, reasoning, or tool fragments). */
   chunks: number;
+  firstOutputMs: number | null;
+  firstOutputEstimate: number;
   /** Output characters (text + reasoning + tool argument fragments). */
   chars: number;
   /** Exact final count: usage.completion_tokens, else timings.predicted_n. */
@@ -170,7 +172,7 @@ export interface GenerationState {
 }
 
 export function createGenerationState(): GenerationState {
-  return { chunks: 0, chars: 0, exact: null, genRate: null, promptRate: null };
+  return { chunks: 0, chars: 0, firstOutputMs: null, firstOutputEstimate: 0, exact: null, genRate: null, promptRate: null };
 }
 
 function chunkFields(data: Record<string, unknown>): {
@@ -213,13 +215,27 @@ export function isOutputChunk(data: unknown): boolean {
  * Section 7.4: count one output chunk once, text and reasoning characters;
  * tool fragments count but are never retained.
  */
-export function applyOutputChunk(state: GenerationState, data: unknown): void {
+export function applyOutputChunk(state: GenerationState, data: unknown, nowMs: number = NaN): void {
   if (typeof data !== "object" || data === null) return;
   const fields = chunkFields(data as Record<string, unknown>);
   if (!fields) return;
   if (fields.content.length === 0 && fields.reasoning.length === 0 && fields.toolChars === 0) return;
   state.chunks += 1;
   state.chars += fields.content.length + fields.reasoning.length + fields.toolChars;
+  if (state.chunks === 1) {
+    state.firstOutputMs = Number.isFinite(nowMs) ? nowMs : null;
+    state.firstOutputEstimate = Math.max(state.chunks, Math.round(state.chars / 6));
+  }
+}
+
+/** Cumulative unsmoothed estimate, excluding TTFT and the entire first batch. */
+export function estimateGenerationRate(state: GenerationState, nowMs: number): number | null {
+  if (state.firstOutputMs === null || state.chunks < 2 || !Number.isFinite(nowMs)) return null;
+  const elapsed = nowMs - state.firstOutputMs;
+  if (elapsed < 500) return null;
+  const delta = Math.max(state.chunks, Math.round(state.chars / 6)) - state.firstOutputEstimate;
+  const rate = delta * 1000 / elapsed;
+  return Number.isFinite(rate) && rate > 0 ? rate : null;
 }
 
 /** Estimated tokens until exact final data arrives (SPEC 7.4). */
@@ -243,8 +259,8 @@ export function applyTimings(state: GenerationState, timings: unknown): void {
   if (typeof timings !== "object" || timings === null) return;
   const t = timings as Record<string, unknown>;
   if (isNonNegativeIntegral(t.predicted_n) && state.exact === null) state.exact = t.predicted_n;
-  if (isFiniteNonNegative(t.predicted_per_second) && t.predicted_per_second > 0) {
-    state.genRate = t.predicted_per_second;
+  if ("predicted_per_second" in t) {
+    state.genRate = isFiniteNonNegative(t.predicted_per_second) && t.predicted_per_second > 0 ? t.predicted_per_second : null;
   }
   if (isFiniteNonNegative(t.prompt_per_second) && t.prompt_per_second > 0) {
     state.promptRate = t.prompt_per_second;

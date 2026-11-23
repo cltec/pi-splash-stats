@@ -63,6 +63,7 @@ function makePi() {
 
 function makeCtx(mode: string, model?: object) {
   const uiCalls: unknown[][] = [];
+  const widgets: { render(width: number): string[]; invalidate(): void }[] = [];
   const ctx = {
     mode,
     model,
@@ -71,18 +72,64 @@ function makeCtx(mode: string, model?: object) {
       setWorkingMessage(message?: string) {
         uiCalls.push(["working", message]);
       },
-      setWidget(key: string, content?: string[]) {
-        uiCalls.push(["widget", key, content]);
+      setWidget(key: string, content?: string[] | (() => { render(width: number): string[]; invalidate(): void })) {
+        if (typeof content === "function") {
+          const component = content();
+          widgets.push(component);
+          uiCalls.push(["widget", key, component.render(120)]);
+        } else {
+          uiCalls.push(["widget", key, content]);
+        }
       },
     },
     modelRegistry: {
       getApiKeyAndHeaders: async () => ({ ok: true, apiKey: "test-key" }),
     },
   };
-  return { ctx, uiCalls };
+  return { ctx, uiCalls, widgets };
 }
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+test("live rate uses request-local monotonic output clock and final rates stay authoritative", async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = modelsFetch(MODELS_OK).impl as typeof fetch;
+  const pi = makePi();
+  const { ctx, uiCalls, widgets } = makeCtx("tui", SPLASH_MODEL);
+  let now = 90000;
+  extension(pi.api, () => now);
+  try {
+    await pi.emit("session_start", {}, ctx);
+    for (let request = 0; request < 2; request++) {
+      await pi.emit("before_provider_request", { payload: { model: "verify-model", messages: [], stream: true } }, ctx);
+      const stream = { provider: "verify-local", api: "openai-completions", model: "verify-model" };
+      uiCalls.length = 0;
+      await pi.emit("provider_stream_event", { ...stream, data: { choices: [{ delta: { content: "xxxxxx" } }] } }, ctx);
+      assert.doesNotMatch(JSON.stringify(uiCalls), /tok\/s/);
+      now += 500;
+      await pi.emit("provider_stream_event", { ...stream, data: { choices: [{ delta: { tool_calls: [{ function: { arguments: "xxxxxx" } }] } }] } }, ctx);
+      // Finalization flushes the coalesced live update before replacing it.
+      await new Promise(resolve => setTimeout(resolve, 110));
+      const liveWidget = widgets.at(-1)!;
+      assert.match(liveWidget.render(120)[0], /tok\/s/);
+      assert.doesNotMatch(liveWidget.render(22)[0], /tok\/s/);
+      liveWidget.invalidate(); // Same component after resize, without another stream event.
+      assert.match(liveWidget.render(120)[0], /tok\/s/);
+      assert.doesNotMatch(liveWidget.render(22)[0], /tok\/s/);
+      await pi.emit("provider_stream_event", { ...stream, data: { choices: [{ finish_reason: "stop" }], usage: { completion_tokens: 7 }, timings: { predicted_per_second: 12 } } }, ctx);
+      assert.match(JSON.stringify(uiCalls), /7 tok.*12\.0 tok\/s/);
+      const finalWidget = widgets.at(-1)!;
+      assert.match(finalWidget.render(120)[0], /12\.0 tok\/s/);
+      assert.doesNotMatch(finalWidget.render(22)[0], /tok\/s/);
+      finalWidget.invalidate();
+      assert.match(finalWidget.render(120)[0], /12\.0 tok\/s/);
+      now += 10000;
+    }
+  } finally {
+    await pi.emit("session_shutdown", {}, ctx);
+    globalThis.fetch = original;
+  }
+});
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 130));
 

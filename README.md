@@ -2,7 +2,7 @@
 
 A Pi extension that shows live inference statistics for OpenAI-compatible [**Splash**](https://github.com/incoai/splash) servers in the
 interactive terminal UI: a **cache-aware prefill progress bar** while the prompt is being processed,
-and a **live generation token count** while the model streams its answer.
+and a **live estimated generation count and speed** while the model streams its answer.
 
 It is a passive observer. It enriches and watches the inference traffic Pi already sends to a
 verified Splash backend, then renders two transient status lines in the TUI. It changes no prompts,
@@ -12,7 +12,7 @@ This extension is inspired by [pi-llama-cpp-stats](https://www.npmjs.com/package
 
 ```
  ── ⠸ Prefilling... ██████████░░░░░░░░░░  50% · 2s · 20.0 tok/s ─────────────────────
-  Generating... ≈5 tok
+  Generating... ≈123 tok (≈45.6 tok/s)
 ```
 
 ## What you get
@@ -20,8 +20,7 @@ This extension is inspired by [pi-llama-cpp-stats](https://www.npmjs.com/package
 - **Cache-aware prefill progress.** A 20-cell bar with percentage, elapsed time, and uncached
   throughput (`Prefilling... ████░░░░ NN% · 2s · 20.0 tok/s`). Cached tokens are not re-counted, so
   the bar reflects the work actually being done.
-- **Live generation count.** An approximate token count that grows while the answer streams
-  (`Generating... ≈123 tok`), marked with `≈` because it is an estimate, not a final total.
+- **Live generation count and speed.** While the answer streams, `Generating... ≈123 tok (≈45.6 tok/s)` shows estimates, each marked `≈`. The cumulative rate excludes time-to-first-output and the first output batch, appears only after a later batch and at least 500 ms, and includes pauses between stream observations. It uses estimated tokens, not backend timing; burst delivery and tokenization affect accuracy. Very short responses and narrow terminals show the count alone. Final counts and native Splash throughput take precedence independently; unavailable final rates are omitted.
 - **TUI only.** The statistics appear only in the interactive terminal UI. RPC, print, and JSON
   modes produce no statistics messages, no terminal output, no notifications, and no transcript
   entries (SPECIFICATION.md §8.4, AC-13).

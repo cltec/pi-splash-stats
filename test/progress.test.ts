@@ -214,7 +214,7 @@ test("7.5 authoritative rates come only from timings; zero rate means unavailabl
   assert.equal(gen.genRate, 82.4);
   assert.equal(gen.promptRate, 20);
   applyTimings(gen, { predicted_per_second: -5 });
-  assert.equal(gen.genRate, 82.4); // invalid values never overwrite
+  assert.equal(gen.genRate, null); // an explicitly invalid final rate is unavailable
 });
 
 test("7.5 chunk counts are never labeled exact", () => {
