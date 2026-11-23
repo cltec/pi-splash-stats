@@ -1,9 +1,8 @@
 # Releasing a Pi extension
 
-This project releases from an explicit, manually pushed stable tag. It does **not** create tags on merge, publish on merge, or auto-merge release pull requests. Publishing is disabled by default with both:
+Merge a reviewed stable version-and-changelog bump into `main` to request a release. Release-intent automation verifies the exact pushed commit before creating or verifying its matching `vX.Y.Z` tag, then explicitly dispatches the existing `Release` workflow at that tag. It never auto-merges a pull request.
 
-- `"private": true` in `package.json`.
-- The `ENABLE_NPM_PUBLISH` repository variable, which must be the exact string `true`.
+`package.json` currently sets `"private": false`; this alone does not enable publication. The `ENABLE_NPM_PUBLISH` repository variable must be the exact string `true`. With the gate disabled, there is no npm publication or GitHub Release. Tag creation is separate from publication.
 
 The release workflow validates the tag and package identity before any publication work. If the variable is absent or not exactly `true`, the validation, Node 22/24 checks, and Pi smoke still run, but the package, publish, and GitHub Release jobs are skipped. If the variable is `true` while the package is still private, the validation job fails closed before packing.
 
@@ -18,7 +17,7 @@ Complete the package metadata first. At minimum:
 - Keep `repository` as the canonical GitHub URL (`https://github.com/cltec/pi-splash-stats`) in `package.json`, documentation, and workflow references.
 - Set the real package `name`, `version`, `description`, and repository metadata.
 - Keep `repository` as the canonical GitHub URL for the repository that runs this workflow.
-- Change `"private": true` to `"private": false` only when you are ready to publish.
+- Keep `"private": false` only for an intentionally publishable package (the current manifest already sets it). The workflow still rejects a private package when publication is enabled.
 - Keep the Pi baseline in `scripts/quality.json`; this project pins `1.6.0`.
 - Add a changelog heading for the exact version, for example `## [0.2.0]`. The release script rejects a missing or mismatched heading.
 
@@ -36,7 +35,7 @@ This is a variable, not a secret. Anything other than the exact lowercase value 
 
 ### 3. Bootstrap the npm package, if needed
 
-If the npm package does not exist yet, publish the reviewed `0.1.0` package manually from a clean checkout with your npm account and two-factor authentication. This is a one-time local bootstrap, not a CI credential.
+If the npm package does not exist yet, publish an explicitly authorized, reviewed stable version manually from a clean checkout with your npm account and two-factor authentication. This is a one-time local bootstrap, not a CI credential.
 
 Before publishing, run the package checks and inspect the exact pack contents:
 
@@ -79,8 +78,8 @@ Do not wrap the publishing command in a reusable workflow. Configure npm for the
 ### 5. Protect the release boundary
 
 - Keep branch protection and tag protection or rulesets for `v*` tags.
-- Allow GitHub Actions to use the job permissions declared in `release.yml`.
-- Keep `contents: read` at the workflow level. Only the publish job gets `id-token: write`; only the GitHub Release job gets `contents: write`.
+- Allow GitHub Actions to use the job permissions declared in the release workflows. Release-intent automation needs narrowly scoped permission to create tags and dispatch `Release`; tag rulesets must allow that authorized actor without permitting tag moves.
+- Keep default permissions read-only. Only the publish job gets `id-token: write`. Tag creation and GitHub Release creation need scoped `contents: write`; dispatch needs scoped `actions: write`. Do not grant publication credentials to the release-intent checks.
 - Do not add secrets to this workflow, and do not let an unrelated workflow publish the package.
 - After trusted publishing works, consider npm's **Require two-factor authentication and disallow tokens** setting.
 
@@ -103,11 +102,23 @@ npm pack --dry-run --ignore-scripts
 
 `npm run check` runs the offline tests and the package allowlist check. It does not launch Pi. `npm run test:e2e` is the real-Pi smoke test and reads `PI_BIN`; its version must match `scripts/quality.json`, or `PI_VERSION` may set the exact stable version for a temporary experiment. The release workflow installs the exact Pi tarball from `scripts/quality.json` into a temporary prefix outside the checkout and sets `PI_BIN` for you.
 
-Commit `package.json` and `CHANGELOG.md`, open a pull request, review it, and merge it normally. **Merging does not create a tag or publish anything.**
+Commit `package.json` and `CHANGELOG.md`, open a pull request, review it, and merge it into `main`. **Merging a version bump is release intent:** once the exact merged commit passes the automation's gates, it can be tagged and released without a second manual tagging step. Keep branch protection and required review enabled.
 
-## Create and push the release tag
+An unchanged version is a no-op, not a release request. A changed version must be canonical stable `X.Y.Z` and strictly greater than the previous version; invalid versions, prereleases, build metadata, leading zeroes, and decreases are rejected. Include a changelog heading for the new version.
 
-Tag the reviewed commit, not a later moving tip:
+## Follow automatic tagging and dispatch
+
+The release-intent workflow anchors its work to the exact pushed commit, never a newer moving `main` tip. Before any tag creation it validates release metadata, runs `npm run check` on Node 22 and 24, and runs real-Pi e2e with the pinned baseline from `scripts/quality.json`. Installing that pin requires network; the checks themselves remain offline.
+
+After those gates pass, automation creates the matching tag only if absent. An existing tag is accepted only if it resolves to the same commit; a conflicting tag fails closed and is never moved or deleted. Automation explicitly dispatches `Release` at the matching tag: a tag pushed with `GITHUB_TOKEN` does not reliably trigger another workflow, so the tag-push event is not the handoff.
+
+In Actions, inspect the release-intent run and then the separate `Release` run. If dispatch fails after tag creation, rerun the original release-intent run: it must verify the same tag/commit and retry dispatch, rather than skipping because the tag exists. Duplicate dispatches are safe through the downstream release checks and integrity-matching publication retry, not a promise of exactly-once workflow execution.
+
+Both release-intent runs and downstream publication are serialized without cancelling an active run. GitHub concurrency is **not a durable FIFO queue**: at most one pending run is retained per group, newer pending work can replace it, and execution order is not guaranteed. Prepare one version bump at a time and confirm its handoff before merging the next. Recover a displaced request by rerunning its original exact-commit run, not by moving a tag or dispatching a branch.
+
+## Manual recovery at a reviewed tag
+
+Manual tagging is a maintainer-authorized fallback, not the normal merge path. Complete the same exact-commit gates first. Tag the reviewed commit, not a later moving tip:
 
 ```bash
 git tag -a v0.2.0 <reviewed-commit-sha> -m "v0.2.0"
@@ -172,17 +183,17 @@ Check all of these:
 
 **The registry is unavailable or returns an error.** The workflow fails instead of treating an error as an available version. Resolve the outage and rerun.
 
-## Optional future automatic tagging
+## Recover release intent
 
-This project deliberately has no auto-tag workflow. If a fork later adopts automatic tagging, keep these constraints:
+**Unchanged version.** No release is requested. Submit a reviewed stable version increase and matching changelog entry when ready.
 
-- Only tag a reviewed, merged version-and-changelog change, anchored to the exact pushed commit. Never tag a newer moving branch tip.
-- Re-run the same tag identity, Node 22/24, package, and pinned-Pi smoke gates against that exact commit before creating the tag.
-- Create the tag once and never move it. Reject a conflicting existing tag.
-- Explicitly dispatch the `Release` workflow at the created tag; do not assume an automation-created tag event will publish.
-- Keep automatic merging out of the release path. A version bump should still be reviewed, and publication should remain a deliberate maintainer action.
+**Invalid or decreased version, or missing changelog heading.** Correct the metadata through review; do not bypass validation.
 
-No automatic merge publication or automatic tag creation is included in this project.
+**Pre-tag checks failed.** No new tag should exist. Inspect the failed offline or pinned-Pi check and fix through a reviewed change.
+
+**Conflicting tag.** Stop and investigate. Never force-push, move, or delete a release tag to repair automation. Use a new reviewed version if the existing tag belongs to another commit.
+
+**Tag exists but dispatch failed or its result is uncertain.** Rerun the original exact-commit intent run, or explicitly dispatch `release.yml` at the verified matching tag as shown above. Inspect Actions for an already-running release first. Repeated dispatch must retain all publication gates and archive-integrity checks.
 
 ## References
 

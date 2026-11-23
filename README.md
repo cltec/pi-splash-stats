@@ -59,8 +59,8 @@ pi install npm:@cltec/pi-splash-stats
 
 For one run without changing Pi settings, use `pi -e /path/to/pi-splash-stats`.
 
-The package is currently `private` and not published to npm; the `npm:` form works only after
-publishing is explicitly enabled (see [docs/RELEASING.md](docs/RELEASING.md)).
+The manifest sets `"private": false`, but publication still requires the explicit repository
+gate. The `npm:` form requires a published version; see [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Usage
 
@@ -142,12 +142,15 @@ directory that users need, add it to the `files` allowlist and update the check 
 
 ## Releases
 
-This package is not a publishing project. It ships with `"private": true`, and the release workflow
-additionally requires the `ENABLE_NPM_PUBLISH` repository variable. Releases are manual and
-explicitly authorized: a reviewed pull request changes the version and `CHANGELOG.md`, then a
-maintainer creates a canonical stable `vX.Y.Z` tag. There is no automatic tag on merge. Concrete,
-non-placeholder repository metadata is required; `private` must also be set to `false` intentionally
-before publishing.
+Merge a reviewed stable version bump and matching `CHANGELOG.md` entry into `main` to
+request a release. Automation verifies that exact commit with offline Node 22/24 checks and
+pinned-Pi e2e before creating or verifying its matching `vX.Y.Z` tag and explicitly dispatching
+`Release`. Unchanged versions do nothing; invalid or decreased versions and conflicting tags
+are rejected. Tags are never moved. There is no automatic merging.
+The manifest already sets `"private": false`; npm publication and GitHub Releases still require
+`ENABLE_NPM_PUBLISH` to be exactly `true`. Disabled means neither is created. Release-intent
+runs are serialized, but GitHub concurrency is not a durable queue: merge one release bump
+at a time and confirm its handoff. Retry the original run if dispatch fails after tagging.
 
 When enabled, the workflow runs source smoke, packs the final `release/package.tgz`, re-runs e2e with
 `PACKAGE_ARCHIVE` pointed at that archive, uploads the checked artifact, and publishes those same
