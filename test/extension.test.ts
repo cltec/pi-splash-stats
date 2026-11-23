@@ -84,6 +84,36 @@ function makeCtx(mode: string, model?: object) {
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
+test("live rate uses request-local monotonic output clock and final rates stay authoritative", async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = modelsFetch(MODELS_OK).impl as typeof fetch;
+  const pi = makePi();
+  const { ctx, uiCalls } = makeCtx("tui", SPLASH_MODEL);
+  let now = 90000;
+  extension(pi.api, () => now);
+  try {
+    await pi.emit("session_start", {}, ctx);
+    for (let request = 0; request < 2; request++) {
+      await pi.emit("before_provider_request", { payload: { model: "verify-model", messages: [], stream: true } }, ctx);
+      const stream = { provider: "verify-local", api: "openai-completions", model: "verify-model" };
+      uiCalls.length = 0;
+      await pi.emit("provider_stream_event", { ...stream, data: { choices: [{ delta: { content: "xxxxxx" } }] } }, ctx);
+      assert.doesNotMatch(JSON.stringify(uiCalls), /tok\/s/);
+      now += 500;
+      await pi.emit("provider_stream_event", { ...stream, data: { choices: [{ delta: { tool_calls: [{ function: { arguments: "xxxxxx" } }] } }] } }, ctx);
+      // Finalization flushes the coalesced live update before replacing it.
+      await new Promise(resolve => setTimeout(resolve, 110));
+      assert.match(JSON.stringify(uiCalls), /≈2\.0 tok\/s/);
+      await pi.emit("provider_stream_event", { ...stream, data: { choices: [{ finish_reason: "stop" }], usage: { completion_tokens: 7 }, timings: { predicted_per_second: 12 } } }, ctx);
+      assert.match(JSON.stringify(uiCalls), /7 tok · 12\.0 tok\/s/);
+      now += 10000;
+    }
+  } finally {
+    await pi.emit("session_shutdown", {}, ctx);
+    globalThis.fetch = original;
+  }
+});
+
 const settle = () => new Promise((resolve) => setTimeout(resolve, 130));
 
 test("registers no commands, tools, or messages; only the expected event listeners", () => {
