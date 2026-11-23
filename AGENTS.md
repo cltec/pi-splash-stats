@@ -31,7 +31,7 @@ Source: `package.json` and the repository scripts. No lint, typecheck, or build 
 4. Run the smallest relevant check while iterating; run `npm run check` before claiming done.
 5. Run `npm run test:e2e` when changing wiring, the command contract, package contents, or the Pi baseline.
 6. Paste command output as evidence. Never say "tested" or "all green" without it.
-7. For release requests, read [`docs/RELEASING.md`](docs/RELEASING.md). Version and changelog changes need a reviewed pull request; a stable tag requires explicit user authorization. Never tag or publish as part of an unrelated task.
+7. For release requests, read [`docs/RELEASING.md`](docs/RELEASING.md). Version and changelog changes need a reviewed pull request; merging a stable bump into `main` is release intent for automation. Agents must not tag or publish locally without explicit user authorization, or as part of an unrelated task.
 
 ## File map
 
@@ -76,7 +76,7 @@ Source: `package.json` and the repository scripts. No lint, typecheck, or build 
 - Change the command name, output contract, `customType`, or UI/headless behavior.
 - Add resources, configuration, network access, tools, or persistent state.
 - Change the Pi baseline, Node requirement, CI matrix, or release configuration.
-- Enable publishing, remove `"private": true`, or add automatic tagging.
+- Enable publishing, change package privacy, or change automatic release/tagging policy.
 
 ### Never
 
@@ -94,7 +94,7 @@ Source: `package.json` and the repository scripts. No lint, typecheck, or build 
 - There is no build, lint, or typecheck. CI runs the checks on Node 22 and 24 on Linux and installs the pinned Pi version from `scripts/quality.json` into a temporary prefix outside the checkout; that install needs network, while the checks themselves are offline.
 - TypeScript is stripped, not typechecked. Avoid parameter properties, enums, and namespaces.
 - The checkout is loaded with `-e`; the packed archive is extracted and loaded as a local directory through the Pi manifest in `package.json`. E2E does not exercise the `pi install` command or registry installation.
-- Release publishing is disabled by `"private": true` and the `ENABLE_NPM_PUBLISH` repository variable; there is no automatic tag or publish on merge. Releases are manual stable `vX.Y.Z` tags after a reviewed version/changelog pull request. The release workflow runs source smoke, then packs the final `release/package.tgz`, re-runs e2e with `PACKAGE_ARCHIVE` pointed at it, and publishes those checked bytes. E2E and offline checks may create temporary packs; only the final release tarball is preserved and published.
+- The manifest sets `"private": false`; publication still requires `ENABLE_NPM_PUBLISH` to equal `true`. Disabled means no npm publication or GitHub Release. A reviewed stable version increase with matching changelog merged into `main` requests release: automation verifies the exact commit with Node 22/24 offline checks and pinned-Pi e2e, creates/verifies its matching tag without moving conflicts, then explicitly dispatches `Release`. Unchanged versions do nothing; invalid/decreased versions fail. Retry dispatch against the same verified tag/commit. Serialize release intents without cancelling active runs, but do not claim GitHub concurrency is a durable FIFO queue. The release workflow packs final `release/package.tgz`, tests those exact bytes with `PACKAGE_ARCHIVE`, and publishes them through trusted publishing with integrity-matching retry checks. See `docs/RELEASING.md`. Agents must not tag or publish locally without explicit authorization.
 
 ## Scoped AGENTS.md
 

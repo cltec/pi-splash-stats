@@ -102,7 +102,7 @@ See [`test/AGENTS.md`](test/AGENTS.md) and [`e2e/AGENTS.md`](e2e/AGENTS.md).
 
 ## Releases
 
-Do not tag or publish from a feature pull request. Version bumps and changelog entries land through a reviewed pull request. A maintainer creates a canonical stable `vX.Y.Z` tag manually after that merge; merging does not create a tag automatically. Publishing is disabled by `"private": true` and by the missing `ENABLE_NPM_PUBLISH` repository variable until a maintainer explicitly configures both. Concrete, non-placeholder repository metadata is required. See [`docs/RELEASING.md`](docs/RELEASING.md).
+Do not tag or publish from a feature pull request. Merge a reviewed stable version increase and matching changelog entry into `main` to request automatic release. Automation checks the exact commit offline on Node 22/24 and with pinned Pi before creating/verifying its matching tag and explicitly dispatching `Release`. Unchanged versions are a no-op; invalid/decreased versions and conflicting tags fail closed. Never move a tag. Merge one release bump at a time: serialized Actions runs are not a durable FIFO queue. If dispatch fails after tagging, retry the original run. The manifest already sets `"private": false`, but `ENABLE_NPM_PUBLISH` must equal `true` for npm publication or a GitHub Release. See [`docs/RELEASING.md`](docs/RELEASING.md) for setup, exact-archive safeguards, and recovery.
 
 ## AI-assisted contributions
 

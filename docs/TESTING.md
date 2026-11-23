@@ -189,6 +189,21 @@ CI runs on Linux with Node 22 and 24. It installs the Pi version from `scripts/q
 
 No other operating system is claimed. Adding one requires running the checks there and updating the documentation and matrix together.
 
+## Release-intent verification
+
+For a reviewed stable version bump merged into `main`, release-intent automation must run
+`npm run check` on Node 22 and 24 and pinned-Pi `npm run test:e2e` against the exact pushed
+commit **before** creating its matching tag. Unchanged versions are a no-op; invalid/decreased
+versions and conflicting tags must fail closed. Retry coverage must include an already-matching
+tag followed by another explicit dispatch, not just fresh tag creation.
+
+Local checks do not prove GitHub permissions, tag rulesets, concurrency scheduling, workflow
+dispatch delivery, or npm OIDC authorization. Validate those in repository Actions without
+bypassing the publication gate; disabled `ENABLE_NPM_PUBLISH` must produce neither an npm
+publication nor a GitHub Release. See [RELEASING.md](RELEASING.md) for setup and recovery.
+The downstream release separately tests and publishes the exact preserved archive; source
+checks alone are not evidence that the published bytes passed e2e.
+
 ## Debugging
 
 - Run one test file directly to reduce noise.

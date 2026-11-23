@@ -107,9 +107,9 @@ generation count doesn't appear:
 
 ## Publishing does not work
 
-That is the default. The project ships `"private": true` and the release workflow additionally requires the `ENABLE_NPM_PUBLISH` repository variable. Merging a version bump does not create a tag; stable tags are created manually after review and explicit authorization.
+The manifest sets `"private": false`, but publication still requires `ENABLE_NPM_PUBLISH` to equal `true`. When disabled, neither npm publication nor a GitHub Release occurs. A reviewed stable version increase merged into `main` requests automatic tagging and dispatch only after exact-commit checks pass. Unchanged versions are a no-op; invalid/decreased versions or conflicting tags fail closed.
 
-Do not remove the guards or add an automatic tag to work around this. See [`RELEASING.md`](RELEASING.md).
+Inspect both the release-intent run and `Release` in Actions. If the tag exists but dispatch failed, retry the original exact-commit run. Never move a tag or bypass the gates. See [`RELEASING.md`](RELEASING.md).
 
 ## Additional resources leak into the package
 
@@ -131,9 +131,9 @@ They are treated as shipping files. Move development material outside the allowl
 - **No credentials in artifacts.** The e2e result and the verification harness write only sanitized,
   schema-versioned evidence. Never paste credentials, prompts, or real home-directory paths into an
   issue. Report vulnerabilities privately per [`../SECURITY.md`](../SECURITY.md).
-- **No automatic publishing.** The package is `private`; publishing is manual and requires a reviewed
-  version/changelog pull request, an explicit `ENABLE_NPM_PUBLISH` setting, and a maintainer-created
-  stable tag. There is no automatic tag on merge.
+- **Publication is gated.** A reviewed version/changelog bump merged into `main` can trigger automatic
+  tagging and release dispatch after exact-commit verification. `ENABLE_NPM_PUBLISH` must explicitly
+  equal `true` for npm publication or a GitHub Release; package privacy alone is not the gate.
 
 ## Where to look next
 
