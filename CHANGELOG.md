@@ -5,6 +5,12 @@ This repository follows [Keep a Changelog](https://keepachangelog.com/) for entr
 
 ## [Unreleased]
 
+## [0.2.1]
+
+### Changed
+
+- Automatic release workflow for reviewed version bumps merged into `main`: verifies the exact merged commit with Node 22/24 checks and pinned-Pi smoke tests before creating or verifying its immutable version tag and explicitly dispatching the gated Release workflow.
+
 ## [0.2.0]
 
 ### Added
